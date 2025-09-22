@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+  <meta charset="UTF-8">
+  <title>אבן נייר ומספריים</title>
+  <style>
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background: linear-gradient(145deg, #f0f4f8, #d9e2ec);
+      text-align: center;
+      direction: rtl;
+      margin: 0;
+      padding: 20px;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+      font-size: 2em;
+      color: #333;
+    }
+
+    .game-container {
+      background: white;
+      max-width: 600px;
+      margin: 0 auto;
+      border-radius: 15px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.1);
+      padding: 20px;
+    }
+
+    .mode-selector {
+      margin-bottom: 15px;
+    }
+
+    .inputs {
+      margin: 15px 0;
+    }
+
+    input[type="text"] {
+      padding: 5px;
+      margin: 5px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+
+    button {
+      font-size: 1.5em;
+      margin: 10px;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 50px;
+      background: #4a90e2;
+      color: white;
+      cursor: pointer;
+      transition: transform 0.2s ease, background 0.3s;
+    }
+
+    button:hover {
+      background: #357ab8;
+      transform: scale(1.05);
+    }
+
+    .choices {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .profile {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin: 10px;
+    }
+
+    .profile .emoji {
+      font-size: 2.5em;
+      background: #e6ecf0;
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .profile span {
+      font-size: 1.2em;
+      color: #333;
+    }
+
+    #result {
+      font-size: 1.2em;
+      margin-top: 20px;
+      padding: 10px;
+      background-color: #f9fafb;
+      border-radius: 10px;
+      min-height: 50px;
+    }
+
+    #score {
+      margin-top: 10px;
+      font-size: 1.1em;
+      font-weight: bold;
+      background: #eef2f7;
+      border-radius: 8px;
+      padding: 10px;
+      display: inline-block;
+    }
+
+    @keyframes flash {
+      0% { background-color: yellow; }
+      100% { background-color: inherit; }
+    }
+
+    .flash {
+      animation: flash 0.3s ease;
+    }
+
+    .winner {
+      animation: bounce 0.6s ease;
+      color: green;
+    }
+
+    @keyframes bounce {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.2); }
+      100% { transform: scale(1); }
+    }
+  </style>
+</head>
+<body>
+  <div class="game-container">
+    <h1>אבן נייר ומספריים</h1>
+
+    <div class="mode-selector">
+      <label><input type="radio" name="mode" value="computer" checked> נגד מחשב</label>
+      <label><input type="radio" name="mode" value="player"> נגד שחקן אמיתי</label>
+    </div>
+
+    <div class="inputs">
+      <input id="player1NameInput" type="text" placeholder="שם שחקן 1">
+      <input id="player2NameInput" type="text" placeholder="שם שחקן 2 / מחשב"><br>
+      <input id="player1Emoji" type="text" placeholder="🧑" maxlength="2">
+      <input id="player2Emoji" type="text" placeholder="💻" maxlength="2">
+      <button onclick="updateNames()">עדכן שמות</button>
+    </div>
+
+    <div class="profile" id="profile1">
+      <div class="emoji" id="emoji1">🧑</div>
+      <span id="name1">שחקן 1</span>
+    </div>
+    <div id="player1" class="choices">
+      <button onclick="makeChoice(1, 'אבן')">🪨</button>
+      <button onclick="makeChoice(1, 'נייר')">📄</button>
+      <button onclick="makeChoice(1, 'מספריים')">✂️</button>
+    </div>
+
+    <div class="profile" id="profile2" style="display:none;">
+      <div class="emoji" id="emoji2">💻</div>
+      <span id="name2">שחקן 2</span>
+    </div>
+    <div id="player2" class="choices" style="display:none;">
+      <button onclick="makeChoice(2, 'אבן')">🪨</button>
+      <button onclick="makeChoice(2, 'נייר')">📄</button>
+      <button onclick="makeChoice(2, 'מספריים')">✂️</button>
+    </div>
+
+    <div id="result"></div>
+    <div id="score"></div>
+  </div>
+
+  <script>
+    let mode = "computer";
+    let player1Choice = null;
+    let player2Choice = null;
+    let score = { player1: 0, player2: 0, computer: 0 };
+
+    let player1Name = "אתה";
+    let player2Name = "מחשב";
+    let player1Emoji = "🧑";
+    let player2Emoji = "💻";
+
+    document.querySelectorAll('input[name="mode"]').forEach(radio => {
+      radio.addEventListener('change', function () {
+        mode = this.value;
+        document.getElementById('player2NameInput').placeholder = (mode === "computer") ? "מחשב" : "שם שחקן 2";
+        document.getElementById('player2Emoji').placeholder = (mode === "computer") ? "💻" : "🧑";
+        updateNames();
+        resetGame();
+      });
+    });
+
+    function makeChoice(player, choice) {
+      if (mode === "computer") {
+        player1Choice = choice;
+        player2Choice = getComputerChoice();
+        showResult();
+      } else {
+        if (player === 1) {
+          player1Choice = choice;
+          document.getElementById('player1').style.display = 'none';
+          document.getElementById('player2').style.display = 'flex';
+          document.getElementById('profile2').style.display = 'flex';
+        } else {
+          player2Choice = choice;
+          showResult();
+        }
+      }
+    }
+
+    function getComputerChoice() {
+      const choices = ['אבן', 'נייר', 'מספריים'];
+      return choices[Math.floor(Math.random() * 3)];
+    }
+
+    function flashChoice(choice, player) {
+      const container = document.getElementById(player === 1 ? 'player1' : 'player2');
+      const buttons = container.querySelectorAll('button');
+      buttons.forEach(btn => {
+        if (btn.innerText.includes(choice)) {
+          btn.classList.add('flash');
+          setTimeout(() => btn.classList.remove('flash'), 300);
+        }
+      });
+    }
+
+    function showResult() {
+      let winner = getWinner(player1Choice, player2Choice);
+      let resultDiv = document.getElementById('result');
+      let resultText = "";
+
+      flashChoice(player1Choice, 1);
+      flashChoice(player2Choice, 2);
+
+      resultText += `${player1Emoji} ${player1Name} בחר: ${player1Choice} <br>`;
+      resultText += `${player2Emoji} ${player2Name} בחר: ${player2Choice} <br>`;
+
+      if (winner === "draw") {
+        resultText += "<strong>תיקו!</strong>";
+      } else if (winner === "player1") {
+        resultText += `<strong class="winner">${player1Emoji} ${player1Name} ניצח!</strong>`;
+        score.player1++;
+      } else {
+        resultText += `<strong class="winner">${player2Emoji} ${player2Name} ניצח!</strong>`;
+        if (mode === "computer") score.computer++; else score.player2++;
+      }
+
+      resultDiv.innerHTML = resultText;
+      updateScore();
+      setTimeout(resetGame, 2000);
+    }
+
+    function getWinner(choice1, choice2) {
+      if (choice1 === choice2) return "draw";
+      if (
+        (choice1 === 'אבן' && choice2 === 'מספריים') ||
+        (choice1 === 'נייר' && choice2 === 'אבן') ||
+        (choice1 === 'מספריים' && choice2 === 'נייר')
+      ) {
+        return "player1";
+      }
+      return "player2";
+    }
+
+    function updateScore() {
+      const scoreText = `${player1Emoji} ${player1Name}: ${score.player1} | ${player2Emoji} ${mode === "computer" ? "מחשב" : player2Name}: ${mode === "computer" ? score.computer : score.player2}`;
+      document.getElementById('score').innerText = scoreText;
+    }
+
+    function resetGame() {
+      player1Choice = null;
+      player2Choice = null;
+      document.getElementById('result').innerText = "";
+      document.getElementById('player1').style.display = 'flex';
+      document.getElementById('player2').style.display = 'none';
+      document.getElementById('profile2').style.display = (mode === "computer") ? "none" : "flex";
+    }
+
+    function updateNames() {
+      const p1 = document.getElementById('player1NameInput').value.trim();
+      const p2 = document.getElementById('player2NameInput').value.trim();
+      const e1 = document.getElementById('player1Emoji').value.trim();
+      const e2 = document.getElementById('player2Emoji').value.trim();
+
+      player1Name = p1 || (mode === "computer" ? "אתה" : "שחקן 1");
+      player2Name = p2 || (mode === "computer" ? "מחשב" : "שחקן 2");
+
+      player1Emoji = e1 || "🧑";
+      player2Emoji = e2 || (mode === "computer" ? "💻" : "🧑");
+
+      document.getElementById('name1').innerText = player1Name;
+      document.getElementById('name2').innerText = player2Name;
+      document.getElementById('emoji1').innerText = player1Emoji;
+      document.getElementById('emoji2').innerText = player2Emoji;
+
+      updateScore();
+    }
+
+    updateNames();
+    resetGame();
+  </script>
+</body>
+</html>
