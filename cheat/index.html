@@ -3,6 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#00ff88">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="RPS Cheat">
 <title>רמאות אבן נייר ומספריים</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=Heebo:wght@400;700;900&display=swap" rel="stylesheet">
 <style>
@@ -30,91 +35,57 @@
     min-height: 100dvh;
     display: flex;
     flex-direction: column;
-    padding: 0 0 env(safe-area-inset-bottom);
   }
 
-  /* ── DESKTOP WRAPPER ── */
-  .page-wrap {
+  /* ── RESPONSIVE LAYOUT ── */
+  .app-shell {
+    display: flex;
+    flex: 1;
+    min-height: 100dvh;
+  }
+
+  /* Sidebar (desktop) */
+  .sidebar {
+    width: 100%;
+    max-width: 480px;
     display: flex;
     flex-direction: column;
-    flex: 1;
-    max-width: 480px;
-    margin: 0 auto;
-    width: 100%;
+    flex-shrink: 0;
   }
 
-  @media (min-width: 900px) {
-    body {
-      background: var(--bg);
-      align-items: stretch;
-    }
+  /* Main content pane */
+  .content-pane {
+    display: none; /* hidden on mobile, sidebar IS the content */
+  }
 
-    .desktop-layout {
-      display: flex;
-      flex: 1;
-      min-height: 100dvh;
-    }
+  @media (min-width: 860px) {
+    body { flex-direction: row; overflow: hidden; height: 100dvh; }
 
-    /* Left column: setup + context panel */
-    .col-left {
-      width: 360px;
-      flex-shrink: 0;
-      border-right: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
+    .app-shell { flex-direction: row; height: 100dvh; overflow: hidden; }
+
+    .sidebar {
+      width: 380px;
+      max-width: 380px;
+      border-left: 1px solid var(--border);
       background: var(--surface);
-      position: sticky;
-      top: 0;
+      overflow-y: auto;
       height: 100dvh;
-      overflow-y: auto;
+      flex-shrink: 0;
     }
 
-    .col-left .page-wrap {
-      max-width: 100%;
-      width: 100%;
-    }
-
-    /* Right column: main content */
-    .col-right {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      overflow-y: auto;
-      min-height: 100dvh;
-    }
-
-    .col-right .page-wrap {
-      max-width: 600px;
-      width: 100%;
-    }
-
-    /* On desktop, context panel is always visible in sidebar (not hidden) */
-    .context-panel {
-      display: block !important;
-      border: none;
-      border-top: 1px solid var(--border);
-      border-radius: 0;
-      flex: 1;
-    }
-
-    /* Next btn inside right col */
-    .main {
-      flex: 1;
-    }
-  }
-
-  @media (max-width: 899px) {
-    .desktop-layout { display: contents; }
-    .col-left { display: contents; }
-    .col-right { display: contents; }
-    .page-wrap {
-      max-width: 480px;
-      margin: 0 auto;
-      width: 100%;
+    .content-pane {
       display: flex;
       flex-direction: column;
       flex: 1;
+      overflow-y: auto;
+      height: 100dvh;
+      background: var(--bg);
     }
+
+    /* On desktop, context panel always visible – no toggling */
+    .context-panel { display: block !important; border-radius: 0; border: none; border-top: 1px solid var(--border); }
+    /* On desktop, next-btn always show if profile loaded */
+    .desktop-main { flex: 1; }
   }
 
   /* Scanline overlay */
@@ -772,26 +743,179 @@
   .inf-badge .inf-val { font-size: 0.85rem; font-weight: 700; color: var(--green); }
   .inf-badge .inf-lbl { font-size: 0.58rem; color: var(--dim); text-transform: uppercase; letter-spacing: 0.8px; margin-top: 2px; }
 
+  /* ── ROUND RESULT PANEL ── */
+  .round-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 0;
+  }
+
+  .round-header {
+    padding: 10px 16px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .round-body {
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .round-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .round-label {
+    font-size: 0.7rem;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    width: 60px;
+    flex-shrink: 0;
+  }
+
+  .outcome-btns {
+    display: flex;
+    gap: 6px;
+    flex: 1;
+  }
+
+  .outcome-btn {
+    flex: 1;
+    padding: 7px 4px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    font-family: 'Heebo', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--dim);
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+  }
+
+  .outcome-btn.win.active  { background: rgba(0,255,136,0.12); border-color: var(--green); color: var(--green); }
+  .outcome-btn.loss.active { background: rgba(255,51,85,0.12);  border-color: var(--red);   color: var(--red);   }
+  .outcome-btn.tie.active  { background: rgba(255,215,0,0.12);  border-color: var(--yellow); color: var(--yellow); }
+
+  .opponent-choice-row {
+    display: flex;
+    gap: 6px;
+    flex: 1;
+  }
+
+  .opp-btn {
+    flex: 1;
+    padding: 6px 4px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    font-size: 0.95rem;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .opp-btn span { font-size: 0.62rem; font-weight: 700; font-family: 'IBM Plex Mono', monospace; }
+  .opp-btn.rock.active    { border-color: var(--rock-c);     background: rgba(255,107,107,0.1); }
+  .opp-btn.paper.active   { border-color: var(--paper-c);    background: rgba(77,166,255,0.1);  }
+  .opp-btn.scissors.active{ border-color: var(--scissors-c); background: rgba(0,255,136,0.1);   }
+
+  .round-apply-btn {
+    width: 100%;
+    background: rgba(255,215,0,0.07);
+    border: 1px solid rgba(255,215,0,0.3);
+    border-radius: 8px;
+    padding: 9px;
+    font-family: 'Heebo', sans-serif;
+    font-weight: 700;
+    font-size: 0.82rem;
+    color: var(--yellow);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .round-apply-btn:hover { background: rgba(255,215,0,0.13); }
+  .round-apply-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  /* Memory decay badge */
+  .decay-badge {
+    font-size: 0.6rem;
+    padding: 2px 7px;
+    border-radius: 20px;
+    background: rgba(255,215,0,0.08);
+    color: var(--yellow);
+    border: 1px solid rgba(255,215,0,0.2);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  /* ── PRESET COLOR SWATCHES ── */
+  .preset-color-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .preset-choice-label {
+    font-size: 0.65rem;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--dim);
+    width: 52px;
+    flex-shrink: 0;
+  }
+  .preset-swatches {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+  }
+  .preset-dot {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: transform 0.12s, border-color 0.12s;
+    flex-shrink: 0;
+  }
+  .preset-dot:hover { transform: scale(1.15); }
+  .preset-dot.selected { border-color: #fff; transform: scale(1.18); }
+
 </style>
 </head>
 <body>
 
-<div class="desktop-layout">
+<div class="app-shell">
 
-<!-- LEFT COLUMN: header + setup + context panel (desktop sidebar) -->
-<div class="col-left">
-<div class="page-wrap">
+<!-- ═══════════ SIDEBAR ═══════════ -->
+<div class="sidebar">
 
 <div class="header">
   <div class="header-icon">🃏</div>
   <div>
-    <div class="header h1" style="font-family:'IBM Plex Mono',monospace;font-size:1rem;font-weight:700;color:var(--green);letter-spacing:2px;">רמאות אבן נייר ומספריים</div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:1rem;font-weight:700;color:var(--green);letter-spacing:2px;">רמאות RPS</div>
+    <div class="sub">CHEAT ENGINE v2</div>
   </div>
 </div>
 
 <!-- Setup -->
 <div class="setup">
-  <!-- Mode -->
   <div class="setup-row">
     <div class="setup-label">מצב</div>
     <div class="seg-btn-group">
@@ -799,111 +923,122 @@
       <button class="seg-btn" id="mode-physical" onclick="setMode('physical')">🤝 פיזי</button>
     </div>
   </div>
-
-  <!-- Player name -->
+  <div class="setup-row">
+    <div class="setup-label">שמי</div>
+    <input type="text" class="name-input" id="my-name" placeholder="השם שלי *" autocomplete="off" style="flex:1">
+  </div>
   <div class="setup-row">
     <div class="setup-label">יריב</div>
-    <div class="input-wrap" id="name-wrap">
-      <input type="text" class="name-input" id="player-name" placeholder="שם היריב (אופציונלי)" autocomplete="off" oninput="onNameInput()" onkeydown="onNameKeydown(event)">
+    <div class="input-wrap" id="name-wrap" style="flex:1">
+      <input type="text" class="name-input" id="player-name" placeholder="שם היריב *" autocomplete="off" oninput="onNameInput()" onkeydown="onNameKeydown(event)" required>
       <div class="ac-drop" id="ac-drop"></div>
     </div>
-    <button class="load-btn" onclick="loadProfile()">טען ▶</button>
+  </div>
+  <button class="load-btn" style="width:100%;padding:10px;font-size:0.9rem;" onclick="smartUpdate()">עדכן ▶</button>
+</div>
+
+<!-- Context Panel: position + color + round result -->
+<div class="context-panel" id="context-panel">
+  <div class="ctx-header" id="ctx-header">
+    <span>הסיבוב הנוכחי</span>
+    <span class="ctx-hint">גרור · לחץ · בחר</span>
+  </div>
+  <div class="ctx-body" id="ctx-body">
+
+    <!-- Position row -->
+    <div class="ctx-row" id="ctx-row-pos">
+      <div class="ctx-row-label">סדר</div>
+      <div class="pos-drag-row" id="pos-drag-row">
+        <div class="pos-slot" id="slot-left"   data-pos="left"   ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="drop(event,'left')"   onclick="slotClick('left')">
+          <div class="slot-pos-name">שמאל</div>
+          <div class="pos-slot-empty pos-choice-pill"><div class="slot-emoji">❓</div></div>
+        </div>
+        <div class="pos-slot" id="slot-center" data-pos="center" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="drop(event,'center')" onclick="slotClick('center')">
+          <div class="slot-pos-name">אמצע</div>
+          <div class="pos-slot-empty pos-choice-pill"><div class="slot-emoji">❓</div></div>
+        </div>
+        <div class="pos-slot" id="slot-right"  data-pos="right"  ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="drop(event,'right')"  onclick="slotClick('right')">
+          <div class="slot-pos-name">ימין</div>
+          <div class="pos-slot-empty pos-choice-pill"><div class="slot-emoji">❓</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Color row — preset palette per choice -->
+    <div class="ctx-row" id="ctx-row-color">
+      <div class="ctx-row-label">צבעים</div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:6px;" id="color-rows"></div>
+    </div>
+
+    <!-- ── תיעוד סיבוב ── -->
+    <div id="record-panel" style="display:none;margin-top:4px;border-top:1px solid var(--border);padding-top:10px;">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:0.62rem;color:var(--dim);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;">תיעוד סיבוב</div>
+
+      <div class="round-row" style="margin-bottom:6px;">
+        <div class="round-label">שיחקתי</div>
+        <div class="opponent-choice-row">
+          <button class="opp-btn rock"     id="my-rock"     onclick="setMyChoice('rock')">✊<span>אבן</span></button>
+          <button class="opp-btn paper"    id="my-paper"    onclick="setMyChoice('paper')">📄<span>נייר</span></button>
+          <button class="opp-btn scissors" id="my-scissors" onclick="setMyChoice('scissors')">✂️<span>מספריים</span></button>
+        </div>
+      </div>
+
+      <div class="round-row" style="margin-bottom:8px;">
+        <div class="round-label">היריב</div>
+        <div class="opponent-choice-row">
+          <button class="opp-btn rock"     id="opp-rock"     onclick="setOppActual('rock')">✊<span>אבן</span></button>
+          <button class="opp-btn paper"    id="opp-paper"    onclick="setOppActual('paper')">📄<span>נייר</span></button>
+          <button class="opp-btn scissors" id="opp-scissors" onclick="setOppActual('scissors')">✂️<span>מספריים</span></button>
+        </div>
+      </div>
+
+      <button id="save-round-btn" class="round-apply-btn" onclick="saveRoundAndNext()" disabled>💾 שמור וסיבוב הבא</button>
+    </div>
+  </div><!-- /ctx-body -->
+
+  <!-- Influence display -->
+  <div class="influence-row" id="influence-row">
+    <div class="inf-badge">
+      <div class="inf-val" id="inf-pos-val">—</div>
+      <div class="inf-lbl">מיקום</div>
+    </div>
+    <div class="inf-badge">
+      <div class="inf-val" id="inf-col-val">—</div>
+      <div class="inf-lbl">צבע</div>
+    </div>
+    <div class="inf-badge">
+      <div class="inf-val" id="inf-ws-val">—</div>
+      <div class="inf-lbl">win-stay</div>
+    </div>
+    <div class="inf-badge">
+      <div class="inf-val" id="inf-ls-val">—</div>
+      <div class="inf-lbl">lose-shift</div>
+    </div>
   </div>
 </div>
 
-  <!-- Context Panel: position + color input (in sidebar on desktop, inline on mobile) -->
-  <div class="context-panel" id="context-panel">
-    <div class="ctx-header">
-      <span>הסיבוב הנוכחי</span>
-      <span class="ctx-hint">גרור כפתורים · בחר צבעים</span>
-    </div>
-    <div class="ctx-body">
+</div><!-- /sidebar -->
 
-      <!-- Position row -->
-      <div class="ctx-row">
-        <div class="ctx-row-label">סדר</div>
-        <div class="pos-drag-row" id="pos-drag-row">
-          <div class="pos-slot" id="slot-left"   data-pos="left"   ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="drop(event,'left')"   onclick="slotClick('left')">
-            <div class="slot-pos-name">שמאל</div>
-            <div class="pos-slot-empty pos-choice-pill"><div class="slot-emoji">❓</div></div>
-          </div>
-          <div class="pos-slot" id="slot-center" data-pos="center" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="drop(event,'center')" onclick="slotClick('center')">
-            <div class="slot-pos-name">אמצע</div>
-            <div class="pos-slot-empty pos-choice-pill"><div class="slot-emoji">❓</div></div>
-          </div>
-          <div class="pos-slot" id="slot-right"  data-pos="right"  ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="drop(event,'right')"  onclick="slotClick('right')">
-            <div class="slot-pos-name">ימין</div>
-            <div class="pos-slot-empty pos-choice-pill"><div class="slot-emoji">❓</div></div>
-          </div>
-        </div>
-      </div>
+<!-- ═══════════ CONTENT PANE (desktop only) ═══════════ -->
+<div class="content-pane" id="content-pane">
+  <!-- mirrored main content rendered here on desktop by JS -->
+</div>
 
-      <!-- Color row -->
-      <div class="ctx-row">
-        <div class="ctx-row-label">צבעים</div>
-        <div class="color-swatches" id="color-swatches">
-          <div class="color-swatch-wrap">
-            <div class="color-swatch" id="swatch-rock" style="background:#ff6b6b;">
-              <input type="color" value="#ff6b6b" oninput="onColorChange('rock',this.value)" onchange="onColorChange('rock',this.value)">
-            </div>
-            <div class="swatch-label">אבן</div>
-          </div>
-          <div class="color-swatch-wrap">
-            <div class="color-swatch" id="swatch-paper" style="background:#4da6ff;">
-              <input type="color" value="#4da6ff" oninput="onColorChange('paper',this.value)" onchange="onColorChange('paper',this.value)">
-            </div>
-            <div class="swatch-label">נייר</div>
-          </div>
-          <div class="color-swatch-wrap">
-            <div class="color-swatch" id="swatch-scissors" style="background:#00ff88;">
-              <input type="color" value="#00ff88" oninput="onColorChange('scissors',this.value)" onchange="onColorChange('scissors',this.value)">
-            </div>
-            <div class="swatch-label">מספריים</div>
-          </div>
-        </div>
-      </div>
+</div><!-- /app-shell -->
 
-      <button class="ctx-apply-btn" id="ctx-apply-btn" onclick="applyContext()" disabled>עדכן המלצה לפי הסיבוב ↑</button>
-    </div>
+<!-- ═══════════ MAIN (mobile) ═══════════ -->
+<div class="main" id="main-mobile">
 
-    <!-- Influence display -->
-    <div class="influence-row" id="influence-row">
-      <div class="inf-badge">
-        <div class="inf-val" id="inf-pos-val">—</div>
-        <div class="inf-lbl">השפעת מיקום</div>
-      </div>
-      <div class="inf-badge">
-        <div class="inf-val" id="inf-col-val">—</div>
-        <div class="inf-lbl">השפעת צבע</div>
-      </div>
-      <div class="inf-badge">
-        <div class="inf-val" id="inf-base-val">—</div>
-        <div class="inf-lbl">בסיס סטטיסטי</div>
-      </div>
-    </div>
-  </div>
-
-</div><!-- /page-wrap -->
-</div><!-- /col-left -->
-
-<!-- RIGHT COLUMN: main results -->
-<div class="col-right">
-<div class="page-wrap">
-<div class="main">
-
-  <!-- Empty state -->
   <div class="empty-state" id="empty-state">
     <div class="icon">🎯</div>
-    <p>בחר יריב ולחץ <strong style="color:var(--green)">טען</strong><br>לקבל המלצה מבוססת נתונים</p>
+    <p>בחר יריב ולחץ <strong style="color:var(--green)">עדכן</strong><br>לקבל המלצה מבוססת נתונים</p>
   </div>
 
-  <!-- Status bar -->
   <div class="status-bar hidden" id="status-bar">
     <div class="status-dot gray" id="status-dot"></div>
     <span id="status-text">טוען...</span>
   </div>
 
-  <!-- Recommendation -->
   <div class="rec-card hidden" id="rec-card">
     <div class="rec-header">המלצה — בחר את זה</div>
     <div class="rec-body">
@@ -919,18 +1054,14 @@
     </div>
   </div>
 
-  <!-- Location hint (app mode only) -->
   <div class="location-card" id="location-card">
     <div class="location-header">
       <span>מיקום כפתורים</span>
       <span class="location-badge">IN-APP</span>
     </div>
-    <div class="location-grid" id="location-grid">
-      <!-- filled by JS -->
-    </div>
+    <div class="location-grid" id="location-grid"></div>
   </div>
 
-  <!-- Stats breakdown -->
   <div class="stats-card hidden" id="stats-card">
     <div class="stats-header">
       <span>התפלגות בחירות</span>
@@ -956,22 +1087,15 @@
     </div>
   </div>
 
-
-  <!-- Next round button -->
   <button class="next-btn" id="next-btn" onclick="nextRound()">סיבוב הבא ↩</button>
 
-
-</div><!-- /main -->
-</div><!-- /page-wrap col-right -->
-</div><!-- /col-right -->
-
-</div><!-- /desktop-layout -->
+</div><!-- /main-mobile -->
 
 <div class="toast" id="toast"></div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
-import { getDatabase, ref, get, query, orderByChild, equalTo, update, onValue } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js";
+import { getDatabase, ref, get, push, update, onValue } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyA-IW5ESE-eBuyMBfreGmyPdQV7YmkfmGs",
@@ -985,48 +1109,109 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
+const db  = getDatabase(app);
 
-// ── State ──
+// ── PRESET COLOR PALETTE (matches the app's available colors) ──
+const COLOR_PALETTE = [
+  '#ff4444', '#ff7733', '#ffcc00', '#aadd00',
+  '#00cc66', '#00ddbb', '#4499ff', '#aa55ff',
+  '#ff55aa', '#ffffff', '#aaaaaa', '#333355'
+];
+
+// Default one color per choice
+const COLOR_DEFAULTS = { rock: '#ff4444', paper: '#4499ff', scissors: '#00cc66' };
+
+// ── RESPONSIVE: mirror main content into desktop content-pane ──
+function syncDesktopPane() {
+  const isDesktop = window.innerWidth >= 860;
+  const mainMobile  = el('main-mobile');
+  const contentPane = el('content-pane');
+  if (isDesktop) {
+    // Move main content into right pane
+    if (mainMobile.parentNode !== contentPane) {
+      contentPane.appendChild(mainMobile);
+      mainMobile.style.display = 'flex';
+      mainMobile.style.flexDirection = 'column';
+      mainMobile.style.flex = '1';
+    }
+    // Context panel always visible on desktop
+    el('context-panel').style.display = 'block';
+  } else {
+    // Move back under body
+    if (mainMobile.parentNode !== document.body) {
+      document.body.appendChild(mainMobile);
+    }
+    mainMobile.style.display = '';
+    mainMobile.style.flex = '';
+    // Context panel controlled by .show class on mobile
+    if (!el('context-panel').classList.contains('show')) {
+      el('context-panel').style.display = '';
+    }
+  }
+}
+syncDesktopPane();
+window.addEventListener('resize', syncDesktopPane);
+
+// Initialize color rows on load
+document.addEventListener('DOMContentLoaded', () => renderColorRows());
 let currentMode = 'app';
-let allPlayers = [];
+let allPlayers  = [];
 let currentProfile = null;
 let currentRecommendation = null;
 let acHighlight = -1;
 
-// Position context state
-let ctxPositions = { left: null, center: null, right: null }; // choice name per slot
-let ctxColors = { rock: '#ff6b6b', paper: '#4da6ff', scissors: '#00ff88' };
+// Position context
+let ctxPositions = { left: null, center: null, right: null };
+let ctxColors    = { ...COLOR_DEFAULTS };
 let draggingChoice = null;
-let pendingSlotClick = null; // for tap-to-assign flow on mobile
 
-// ── CHOICES ──
-const EMOJI = { rock: '✊', paper: '📄', scissors: '✂️' };
-const HEB   = { rock: 'אבן', paper: 'נייר', scissors: 'מספריים' };
-const BEATS  = { rock: 'paper', paper: 'scissors', scissors: 'rock' };
-const BEATEN_BY = { rock: 'scissors', paper: 'rock', scissors: 'paper' };
+// Round result state
+let roundOutcome   = null; // 'win' | 'loss' | 'tie'
+let roundOppChoice = null; // 'rock' | 'paper' | 'scissors'
+let lastRoundTimestamp = null; // ms timestamp of last round
+
+// Record state
+let myActualChoice  = null; // what I played
+let oppActualChoice = null; // what opponent played
+
+// ── CONSTANTS ──
+const EMOJI    = { rock: '✊', paper: '📄', scissors: '✂️' };
+const HEB      = { rock: 'אבן', paper: 'נייר', scissors: 'מספריים' };
+const BEATS    = { rock: 'paper', paper: 'scissors', scissors: 'rock' };
+const BEATEN_BY= { rock: 'scissors', paper: 'rock', scissors: 'paper' };
 
 // ── UTILS ──
-function showToast(msg) {
-  const t = document.getElementById('toast');
+function showToast(msg, dur=2500) {
+  const t = el('toast');
   t.textContent = msg;
   t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2500);
+  setTimeout(() => t.classList.remove('show'), dur);
 }
 function hidden(id) { document.getElementById(id).classList.add('hidden'); }
-function show(id) { document.getElementById(id).classList.remove('hidden'); }
-function el(id) { return document.getElementById(id); }
+function show(id)   { document.getElementById(id).classList.remove('hidden'); }
+function el(id)     { return document.getElementById(id); }
 
-// ── MODE TOGGLE ──
-const isDesktop = () => window.innerWidth >= 900;
-
+// ── MODE ──
 window.setMode = function(mode) {
   currentMode = mode;
   ['app','physical'].forEach(m => el('mode-' + m).classList.toggle('active', m === mode));
-  // On desktop the panel is always visible in sidebar; on mobile show/hide it
-  if (!isDesktop()) {
+
+  const isPhysical = mode === 'physical';
+  // Hide pos/color rows in physical mode
+  el('ctx-row-pos').style.display   = isPhysical ? 'none' : '';
+  el('ctx-row-color').style.display = isPhysical ? 'none' : '';
+  // Hide influence row in physical mode
+  el('influence-row').style.display = isPhysical ? 'none' : '';
+  // Hide "הסיבוב הנוכחי / גרור · לחץ · בחר" header in physical mode
+  el('ctx-header').style.display    = isPhysical ? 'none' : '';
+  // Remove ctx-body padding in physical mode (record-panel handles its own spacing)
+  el('ctx-body').style.padding      = isPhysical ? '0' : '';
+  el('ctx-body').style.gap          = isPhysical ? '0' : '';
+
+  if (window.innerWidth < 860) {
     const panel = el('context-panel');
-    if (mode === 'app' && currentRecommendation) panel.classList.add('show');
+    // In physical mode, context panel only shows record panel — always open if profile loaded
+    if (currentRecommendation) panel.classList.add('show');
     else panel.classList.remove('show');
   }
 };
@@ -1039,7 +1224,7 @@ onValue(ref(db, 'players'), snap => {
 });
 
 window.onNameInput = function() {
-  const val = el('player-name').value.trim().toLowerCase();
+  const val  = el('player-name').value.trim().toLowerCase();
   const drop = el('ac-drop');
   acHighlight = -1;
   if (!val) { drop.classList.remove('show'); return; }
@@ -1047,45 +1232,202 @@ window.onNameInput = function() {
   if (!matches.length) { drop.classList.remove('show'); return; }
   drop.innerHTML = matches.map((p, i) => {
     const idx = p.toLowerCase().indexOf(val);
-    const display = p.slice(0,idx) + '<strong style="color:var(--green)">' + p.slice(idx, idx+val.length) + '</strong>' + p.slice(idx+val.length);
-    return `<div class="ac-item" data-name="${p}" data-i="${i}" onmousedown="acPick('${p.replace(/'/g,"\'")}')">👤 ${display}</div>`;
+    const disp = p.slice(0,idx) + '<strong style="color:var(--green)">' + p.slice(idx, idx+val.length) + '</strong>' + p.slice(idx+val.length);
+    return `<div class="ac-item" data-name="${p}" data-i="${i}" onmousedown="acPick('${p.replace(/'/g,"\\'")}')">👤 ${disp}</div>`;
   }).join('');
   drop.classList.add('show');
 };
-
-window.acPick = function(name) {
-  el('player-name').value = name;
-  el('ac-drop').classList.remove('show');
-};
-
+window.acPick = function(name) { el('player-name').value = name; el('ac-drop').classList.remove('show'); };
 window.onNameKeydown = function(e) {
-  const drop = el('ac-drop');
+  const drop  = el('ac-drop');
   const items = drop.querySelectorAll('.ac-item');
-  if (!drop.classList.contains('show') || !items.length) {
-    if (e.key === 'Enter') { e.preventDefault(); loadProfile(); }
-    return;
-  }
-  if (e.key === 'ArrowDown') { e.preventDefault(); acHighlight = Math.min(acHighlight+1, items.length-1); items.forEach((x,i)=>x.classList.toggle('hl',i===acHighlight)); }
-  else if (e.key === 'ArrowUp') { e.preventDefault(); acHighlight = Math.max(acHighlight-1,0); items.forEach((x,i)=>x.classList.toggle('hl',i===acHighlight)); }
-  else if (e.key === 'Enter') {
-    e.preventDefault();
-    if (acHighlight >= 0 && items[acHighlight]) acPick(items[acHighlight].dataset.name);
-    else loadProfile();
-  }
-  else if (e.key === 'Escape') { drop.classList.remove('show'); }
+  if (!drop.classList.contains('show') || !items.length) { if (e.key==='Enter') { e.preventDefault(); smartUpdate(); } return; }
+  if (e.key==='ArrowDown') { e.preventDefault(); acHighlight=Math.min(acHighlight+1,items.length-1); items.forEach((x,i)=>x.classList.toggle('hl',i===acHighlight)); }
+  else if (e.key==='ArrowUp') { e.preventDefault(); acHighlight=Math.max(acHighlight-1,0); items.forEach((x,i)=>x.classList.toggle('hl',i===acHighlight)); }
+  else if (e.key==='Enter') { e.preventDefault(); if (acHighlight>=0&&items[acHighlight]) acPick(items[acHighlight].dataset.name); else smartUpdate(); }
+  else if (e.key==='Escape') drop.classList.remove('show');
 };
 document.addEventListener('click', e => { if (!e.target.closest('#name-wrap')) el('ac-drop').classList.remove('show'); });
 
-// ════════════════════════════════════════════════
-// POSITION DRAG-AND-DROP / TAP-TO-ASSIGN
-// ════════════════════════════════════════════════
+// ── SMART UPDATE: single entry point for load + refresh ──
+window.smartUpdate = function() {
+  const name    = el('player-name').value.trim();
+  const myName  = el('my-name').value.trim();
 
-// Render slots based on ctxPositions
+  if (!name) { showToast('יש להזין שם יריב'); el('player-name').focus(); return; }
+  if (!myName) { showToast('יש להזין את השם שלך'); el('my-name').focus(); return; }
+  if (name.toLowerCase() === 'unknown') { showToast('"unknown" אינו שם תקין'); el('player-name').value = ''; el('player-name').focus(); return; }
+  if (myName.toLowerCase() === 'unknown') { showToast('"unknown" אינו שם תקין'); el('my-name').value = ''; el('my-name').focus(); return; }
+
+  // If profile already loaded for this name, just refresh recommendation with current context
+  if (currentProfile && currentProfile.name === name) {
+    const rec = buildRecommendation();
+    currentRecommendation = rec;
+    renderRecommendation(rec);
+    showToast('המלצה עודכנה ✓');
+  } else {
+    loadProfile();
+  }
+};
+
+// ════════════════════════════════════════════════
+// ROUND RESULT UI
+// ════════════════════════════════════════════════
+window.setOutcome = function(outcome) {
+  roundOutcome = outcome;
+  document.querySelectorAll('.outcome-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.outcome-btn.${outcome}`).classList.add('active');
+  // Show opponent choice row for win/loss (not tie — we already know)
+  el('opp-choice-row').style.display = (outcome === 'tie') ? 'none' : 'flex';
+  if (outcome === 'tie') { roundOppChoice = null; }
+  updateRoundApplyBtn();
+};
+
+window.setOppChoice = function(choice) {
+  roundOppChoice = choice;
+  document.querySelectorAll('.opp-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.opp-btn.${choice}`).classList.add('active');
+  updateRoundApplyBtn();
+};
+
+function updateRoundApplyBtn() {
+  const needsOpp = roundOutcome && roundOutcome !== 'tie';
+  const ready = roundOutcome && (!needsOpp || roundOppChoice);
+  el('round-apply-btn').disabled = !ready;
+}
+
+// Compute memory decay factor: exponential decay toward ~10 min half-life
+// calibrated from data — if lots of consecutive rounds, half-life shrinks
+function computeDecay(elapsedMs, halfLifeMs) {
+  if (!elapsedMs || elapsedMs <= 0) return 1;
+  return Math.pow(0.5, elapsedMs / halfLifeMs);
+}
+
+// Compute the data-driven half-life: look at win-stay / lose-shift accuracy across games
+// with different elapsed times — find where accuracy drops to ~50% of peak
+function computeHalfLifeFromData(games) {
+  // Default from literature: ~8-12 minutes
+  const DEFAULT_HALF_LIFE = 10 * 60 * 1000; // 10 min in ms
+  const sortedGames = games
+    .filter(g => g.timestamp && g.prevOutcome && g.playerChoice)
+    .sort((a, b) => a.timestamp - b.timestamp);
+
+  if (sortedGames.length < 6) return DEFAULT_HALF_LIFE;
+
+  // Measure win-stay / lose-shift success at various time gaps
+  const buckets = [
+    { maxMs: 2*60*1000,  hits: 0, total: 0 },
+    { maxMs: 5*60*1000,  hits: 0, total: 0 },
+    { maxMs: 10*60*1000, hits: 0, total: 0 },
+    { maxMs: 20*60*1000, hits: 0, total: 0 },
+    { maxMs: Infinity,   hits: 0, total: 0 },
+  ];
+
+  for (let i = 1; i < sortedGames.length; i++) {
+    const g    = sortedGames[i];
+    const prev = sortedGames[i-1];
+    const elapsed = g.timestamp - prev.timestamp;
+    const outcome = g.prevOutcome;
+    if (!outcome) continue;
+
+    let predicted;
+    if (outcome === 'win') predicted = prev.playerChoice; // win-stay
+    else if (outcome === 'loss') predicted = BEATEN_BY[prev.playerChoice]; // lose-shift to what beat opponent
+    else continue;
+
+    const correct = predicted === g.playerChoice;
+    for (const b of buckets) {
+      if (elapsed <= b.maxMs) { b.total++; if (correct) b.hits++; break; }
+    }
+  }
+
+  // Find first bucket where accuracy drops below 60% of the best bucket
+  const rates = buckets.map(b => b.total >= 2 ? b.hits/b.total : null);
+  const peakRate = Math.max(...rates.filter(r => r !== null));
+  if (!peakRate) return DEFAULT_HALF_LIFE;
+
+  const thresholds = [2, 5, 10, 20, 60].map(m => m * 60 * 1000);
+  for (let i = 0; i < rates.length; i++) {
+    if (rates[i] !== null && rates[i] < peakRate * 0.6) {
+      return thresholds[i - 1] || DEFAULT_HALF_LIFE;
+    }
+  }
+  return DEFAULT_HALF_LIFE;
+}
+
+// Compute win-stay / lose-shift weights from data
+function computeWinStayLoseShiftWeights(games) {
+  const choices = ['rock','paper','scissors'];
+  let wsHits = 0, wsTotal = 0;
+  let lsHits = 0, lsTotal = 0;
+
+  const sorted = games
+    .filter(g => g.timestamp && g.playerChoice)
+    .sort((a, b) => a.timestamp - b.timestamp);
+
+  for (let i = 1; i < sorted.length; i++) {
+    const g    = sorted[i];
+    const prev = sorted[i-1];
+    if (!prev.playerChoice) continue;
+
+    const outcome = g.prevOutcome;
+    if (outcome === 'win') {
+      wsTotal++;
+      if (g.playerChoice === prev.playerChoice) wsHits++;
+    } else if (outcome === 'loss') {
+      lsTotal++;
+      // Lose-shift: move to what beats the winner (i.e. what the opponent played beats them)
+      const shifted = BEATEN_BY[BEATEN_BY[prev.playerChoice]]; // what beats what beat you
+      if (g.playerChoice === shifted) lsHits++;
+    }
+  }
+
+  const wsRate = wsTotal >= 3 ? wsHits / wsTotal : 0.4; // literature baseline ~40%
+  const lsRate = lsTotal >= 3 ? lsHits / lsTotal : 0.33;
+
+  // Weight = how much above random (33%) this strategy is
+  // Cap at 0.30 each so total max is ~60% of the recommendation
+  const wsWeight = Math.min(Math.max((wsRate - 1/3) * 1.5, 0), 0.30);
+  const lsWeight = Math.min(Math.max((lsRate - 1/3) * 1.5, 0), 0.30);
+
+  return { wsRate, lsRate, wsWeight, lsWeight, wsTotal, lsTotal };
+}
+
+window.applyRoundResult = function() {
+  if (!currentProfile || !roundOutcome) return;
+  lastRoundTimestamp = Date.now();
+
+  // Store round info for next recommendation
+  currentProfile.lastRound = {
+    outcome: roundOutcome,
+    oppChoice: roundOppChoice,
+    timestamp: lastRoundTimestamp
+  };
+
+  const rec = buildRecommendation();
+  currentRecommendation = rec;
+  renderRecommendation(rec);
+  updateDecayBadge();
+  showToast('המלצה עודכנה לפי התוצאה!');
+};
+
+function updateDecayBadge() {
+  if (!lastRoundTimestamp || !currentProfile?.halfLife) return;
+  const elapsed = Date.now() - lastRoundTimestamp;
+  const decay   = computeDecay(elapsed, currentProfile.halfLife);
+  el('decay-badge').textContent = `זיכרון: ${Math.round(decay * 100)}%`;
+  // Update every 30s while decay is active
+  if (decay > 0.05) setTimeout(updateDecayBadge, 30000);
+}
+
+// ════════════════════════════════════════════════
+// POSITION DRAG-AND-DROP + TOUCH
+// ════════════════════════════════════════════════
 function renderSlots() {
   ['left','center','right'].forEach(pos => {
     const choice = ctxPositions[pos];
-    const slot = el('slot-' + pos);
-    const inner = slot.querySelector('.pos-choice-pill') || slot.lastElementChild;
+    const slot   = el('slot-' + pos);
+    const inner  = slot.querySelector('.pos-choice-pill') || slot.lastElementChild;
     if (choice) {
       slot.classList.add('has-choice');
       inner.className = 'pos-choice-pill';
@@ -1096,62 +1438,36 @@ function renderSlots() {
       inner.innerHTML = `<div class="slot-emoji">❓</div>`;
     }
   });
-  // Enable apply button if all slots filled
-  const filled = Object.values(ctxPositions).every(v => v !== null);
-  el('ctx-apply-btn').disabled = !filled;
+  el('ctx-apply-btn').disabled = !Object.values(ctxPositions).every(v => v !== null);
 }
 
-// Tap-to-assign: first tap selects a slot, then pick choice from a mini picker
 window.slotClick = function(pos) {
-  // If slot already has choice, clear it
-  if (ctxPositions[pos]) {
-    ctxPositions[pos] = null;
-    renderSlots();
-    pendingSlotClick = null;
-    return;
-  }
-  // Find unassigned choices
-  const assigned = Object.values(ctxPositions).filter(Boolean);
+  if (ctxPositions[pos]) { ctxPositions[pos] = null; renderSlots(); return; }
+  const assigned  = Object.values(ctxPositions).filter(Boolean);
   const remaining = ['rock','paper','scissors'].filter(c => !assigned.includes(c));
-  if (remaining.length === 0) return;
-  if (remaining.length === 1) {
-    ctxPositions[pos] = remaining[0];
-    renderSlots();
-    return;
-  }
-  // Show mini picker overlay
+  if (!remaining.length) return;
+  if (remaining.length === 1) { ctxPositions[pos] = remaining[0]; renderSlots(); renderDraggableChoices(); return; }
   showChoicePicker(pos, remaining);
 };
 
 function showChoicePicker(pos, choices) {
-  // Remove existing picker
-  const existing = document.getElementById('choice-picker-overlay');
-  if (existing) existing.remove();
-
+  document.getElementById('choice-picker-overlay')?.remove();
   const posNames = { left: 'שמאל', center: 'אמצע', right: 'ימין' };
-  const overlay = document.createElement('div');
+  const overlay  = document.createElement('div');
   overlay.id = 'choice-picker-overlay';
-  overlay.style.cssText = `
-    position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 300;
-    display: flex; align-items: center; justify-content: center;
-  `;
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:300;display:flex;align-items:center;justify-content:center;';
   overlay.innerHTML = `
     <div style="background:#0d0d14;border:1px solid #1e1e2e;border-radius:16px;padding:20px;min-width:240px;text-align:center;">
       <div style="font-family:'IBM Plex Mono',monospace;font-size:0.7rem;color:#444466;text-transform:uppercase;letter-spacing:2px;margin-bottom:14px;">מה ב${posNames[pos]}?</div>
       <div style="display:flex;gap:10px;justify-content:center;">
         ${choices.map(c => `
-          <div onclick="assignChoice('${pos}','${c}')" style="
-            flex:1;background:#050508;border:1px solid #1e1e2e;border-radius:10px;
-            padding:12px 8px;cursor:pointer;transition:border-color 0.1s;
-          " onmouseover="this.style.borderColor='var(--green)'" onmouseout="this.style.borderColor='#1e1e2e'">
+          <div onclick="assignChoice('${pos}','${c}')" style="flex:1;background:#050508;border:1px solid #1e1e2e;border-radius:10px;padding:12px 8px;cursor:pointer;" onmouseover="this.style.borderColor='var(--green)'" onmouseout="this.style.borderColor='#1e1e2e'">
             <div style="font-size:1.8rem;">${EMOJI[c]}</div>
             <div style="font-size:0.75rem;font-weight:700;color:${c==='rock'?'#ff6b6b':c==='paper'?'#4da6ff':'#00ff88'};margin-top:4px;">${HEB[c]}</div>
-          </div>
-        `).join('')}
+          </div>`).join('')}
       </div>
       <div onclick="document.getElementById('choice-picker-overlay').remove()" style="margin-top:14px;font-size:0.75rem;color:#444466;cursor:pointer;">ביטול</div>
-    </div>
-  `;
+    </div>`;
   document.body.appendChild(overlay);
 }
 
@@ -1159,17 +1475,12 @@ window.assignChoice = function(pos, choice) {
   document.getElementById('choice-picker-overlay')?.remove();
   ctxPositions[pos] = choice;
   renderSlots();
+  renderDraggableChoices();
 };
 
-// Drag & drop (desktop mouse)
-window.dragOver = function(e) {
-  e.preventDefault();
-  e.currentTarget.classList.add('drag-over');
-};
-window.dragLeave = function(e) {
-  e.currentTarget.classList.remove('drag-over');
-};
-window.drop = function(e, pos) {
+window.dragOver  = e => { e.preventDefault(); e.currentTarget.classList.add('drag-over'); };
+window.dragLeave = e => { e.currentTarget.classList.remove('drag-over'); };
+window.drop      = function(e, pos) {
   e.preventDefault();
   e.currentTarget.classList.remove('drag-over');
   if (!draggingChoice) return;
@@ -1180,45 +1491,35 @@ window.drop = function(e, pos) {
   renderDraggableChoices();
 };
 
-// ── TOUCH DRAG ──
-let touchClone = null;
-let touchDragChoice = null;
-
+let touchClone = null, touchDragChoice = null;
 function initTouchDrag(chip, choice) {
-  chip.addEventListener('touchstart', function(e) {
+  chip.addEventListener('touchstart', e => {
     e.preventDefault();
     touchDragChoice = choice;
     touchClone = chip.cloneNode(true);
-    const rect = chip.getBoundingClientRect();
-    touchClone.style.cssText += `;position:fixed;z-index:9999;pointer-events:none;
-      opacity:0.9;transform:scale(1.1);transition:none;
-      width:${rect.width}px;border-color:var(--green);`;
+    const r = chip.getBoundingClientRect();
+    touchClone.style.cssText += `;position:fixed;z-index:9999;pointer-events:none;opacity:0.9;transform:scale(1.1);width:${r.width}px;border-color:var(--green);`;
     document.body.appendChild(touchClone);
     const t = e.touches[0];
-    touchClone.style.left = (t.clientX - rect.width / 2) + 'px';
-    touchClone.style.top  = (t.clientY - rect.height / 2) + 'px';
-  }, { passive: false });
-
-  chip.addEventListener('touchmove', function(e) {
+    touchClone.style.left = (t.clientX - r.width/2)+'px';
+    touchClone.style.top  = (t.clientY - r.height/2)+'px';
+  }, {passive:false});
+  chip.addEventListener('touchmove', e => {
     e.preventDefault();
     if (!touchClone) return;
-    const t = e.touches[0];
-    const rect = touchClone.getBoundingClientRect();
-    touchClone.style.left = (t.clientX - rect.width / 2) + 'px';
-    touchClone.style.top  = (t.clientY - rect.height / 2) + 'px';
+    const t = e.touches[0], r = touchClone.getBoundingClientRect();
+    touchClone.style.left = (t.clientX - r.width/2)+'px';
+    touchClone.style.top  = (t.clientY - r.height/2)+'px';
     document.querySelectorAll('.pos-slot').forEach(s => s.classList.remove('drag-over'));
-    const under = document.elementFromPoint(t.clientX, t.clientY);
-    under?.closest('.pos-slot')?.classList.add('drag-over');
-  }, { passive: false });
-
-  chip.addEventListener('touchend', function(e) {
+    document.elementFromPoint(t.clientX, t.clientY)?.closest('.pos-slot')?.classList.add('drag-over');
+  }, {passive:false});
+  chip.addEventListener('touchend', e => {
     e.preventDefault();
-    if (touchClone) { touchClone.remove(); touchClone = null; }
+    touchClone?.remove(); touchClone = null;
     document.querySelectorAll('.pos-slot').forEach(s => s.classList.remove('drag-over'));
     if (!touchDragChoice) return;
-    const t = e.changedTouches[0];
-    const under = document.elementFromPoint(t.clientX, t.clientY);
-    const slot = under?.closest('.pos-slot');
+    const t    = e.changedTouches[0];
+    const slot = document.elementFromPoint(t.clientX, t.clientY)?.closest('.pos-slot');
     if (slot?.dataset.pos) {
       const pos = slot.dataset.pos;
       Object.keys(ctxPositions).forEach(p => { if (ctxPositions[p] === touchDragChoice) ctxPositions[p] = null; });
@@ -1227,31 +1528,21 @@ function initTouchDrag(chip, choice) {
       renderDraggableChoices();
     }
     touchDragChoice = null;
-  }, { passive: false });
+  }, {passive:false});
 }
 
-// Make choice chips draggable
 function renderDraggableChoices() {
-  const existing = document.getElementById('draggable-choices');
-  if (existing) existing.remove();
-
-  const assigned = Object.values(ctxPositions).filter(Boolean);
+  document.getElementById('draggable-choices')?.remove();
+  const assigned  = Object.values(ctxPositions).filter(Boolean);
   const remaining = ['rock','paper','scissors'].filter(c => !assigned.includes(c));
   if (!remaining.length) return;
-
   const wrap = document.createElement('div');
   wrap.id = 'draggable-choices';
   wrap.style.cssText = 'display:flex;gap:6px;justify-content:center;margin-top:6px;';
-
   remaining.forEach(c => {
     const chip = document.createElement('div');
     chip.draggable = true;
-    chip.style.cssText = `
-      background:var(--bg);border:1px solid var(--border);border-radius:8px;
-      padding:6px 10px;cursor:grab;display:flex;align-items:center;gap:5px;
-      font-size:0.78rem;font-weight:700;touch-action:none;user-select:none;
-      color:${c==='rock'?'#ff6b6b':c==='paper'?'#4da6ff':'#00ff88'};
-    `;
+    chip.style.cssText = `background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:6px 10px;cursor:grab;display:flex;align-items:center;gap:5px;font-size:0.78rem;font-weight:700;touch-action:none;user-select:none;color:${c==='rock'?'#ff6b6b':c==='paper'?'#4da6ff':'#00ff88'};`;
     chip.innerHTML = `<span style="font-size:1rem;">${EMOJI[c]}</span>${HEB[c]}`;
     chip.addEventListener('dragstart', () => { draggingChoice = c; });
     chip.addEventListener('dragend',   () => { draggingChoice = null; });
@@ -1259,12 +1550,10 @@ function renderDraggableChoices() {
     initTouchDrag(chip, c);
     wrap.appendChild(chip);
   });
-
   el('pos-drag-row').after(wrap);
 }
 
 window.quickAssign = function(choice) {
-  // Assign to first empty slot
   for (const pos of ['left','center','right']) {
     if (!ctxPositions[pos]) {
       ctxPositions[pos] = choice;
@@ -1275,412 +1564,496 @@ window.quickAssign = function(choice) {
   }
 };
 
-// Override renderSlots to also refresh draggable chips
-const _origRenderSlots = renderSlots;
-// (we'll call renderDraggableChoices after renderSlots manually)
+// ── COLOR PRESET ROWS ──
+function renderColorRows() {
+  const container = el('color-rows');
+  if (!container) return;
+  container.innerHTML = '';
+  ['rock','paper','scissors'].forEach(choice => {
+    const row = document.createElement('div');
+    row.className = 'preset-color-row';
+    const lbl = document.createElement('div');
+    lbl.className = 'preset-choice-label';
+    lbl.textContent = EMOJI[choice] + ' ' + HEB[choice];
+    row.appendChild(lbl);
+    const dots = document.createElement('div');
+    dots.className = 'preset-swatches';
+    COLOR_PALETTE.forEach(hex => {
+      const dot = document.createElement('div');
+      dot.className = 'preset-dot' + (ctxColors[choice] === hex ? ' selected' : '');
+      dot.style.background = hex;
+      dot.title = hex;
+      dot.addEventListener('click', () => {
+        ctxColors[choice] = hex;
+        renderColorRows(); // re-render to update selection
+      });
+      dots.appendChild(dot);
+    });
+    row.appendChild(dots);
+    container.appendChild(row);
+  });
+}
 
-// ── COLOR CHANGE ──
 window.onColorChange = function(choice, hex) {
   ctxColors[choice] = hex;
-  el('swatch-' + choice).style.background = hex;
+  renderColorRows();
 };
 
 // ════════════════════════════════════════════════
 // LOAD PROFILE
 // ════════════════════════════════════════════════
 window.loadProfile = async function() {
-  const name = el('player-name').value.trim();
+  const rawName = el('player-name').value.trim();
+  if (!rawName) { showToast('יש להזין שם יריב'); return; }
+  if (rawName.toLowerCase() === 'unknown') { showToast('"unknown" אינו שם תקין'); el('player-name').value = ''; return; }
+  const name = rawName;
   el('ac-drop').classList.remove('show');
-
   hidden('empty-state');
   show('status-bar');
   hidden('rec-card');
   hidden('stats-card');
-  el('context-panel').classList.remove('show');
+  if (window.innerWidth < 860) el('context-panel').classList.remove('show');
   el('next-btn').classList.remove('show');
   el('status-dot').className = 'status-dot yellow';
   el('status-text').textContent = name ? `טוען נתונים של ${name}...` : 'טוען נתוני כלל המשתמשים...';
 
   try {
     const snap = await get(ref(db, 'games'));
-    if (!snap.exists()) {
-      setStatus('gray', 'אין נתונים עדיין');
-      el('empty-state').style.display = 'block';
-      return;
-    }
+    if (!snap.exists()) { setStatus('gray', 'אין נתונים עדיין'); el('empty-state').style.display='block'; return; }
 
     const allGames = Object.entries(snap.val())
       .map(([id, g]) => ({ id, ...g }))
       .filter(g => !g.cheated && !g.cpuCheat);
 
-    let personalGames = [];
-    let relevantGames;
-    let sourceLabel;
+    let personalGames = [], relevantGames, sourceLabel;
 
-    if (name) {
-      personalGames = allGames.filter(g => g.p1 === name || g.p2 === name)
-        .map(g => ({
-          ...g,
-          playerChoice: g.p1 === name ? g.p1Choice : g.p2Choice,
-          playerPos: g.p1 === name ? g.p1ChoicePosition : g.p2ChoicePosition,
-          playerColors: g.colors
-        }));
+    personalGames = allGames.filter(g => g.p1 === name || g.p2 === name)
+      .map(g => ({
+        ...g,
+        playerChoice: g.p1===name ? g.p1Choice : g.p2Choice,
+        playerPos:    g.p1===name ? g.p1ChoicePosition : g.p2ChoicePosition,
+        playerColors: g.colors,
+        prevOutcome:  g.p1===name ? g.p1PrevOutcome : g.p2PrevOutcome
+      }))
+      .sort((a,b) => (a.timestamp||0) - (b.timestamp||0));
 
-      if (personalGames.length >= 3) {
-        relevantGames = personalGames;
-        sourceLabel = `${name} (${personalGames.length} משחקים)`;
-      } else {
-        relevantGames = buildGlobalGames(allGames);
-        sourceLabel = `כלל המשתמשים (אין מספיק נתונים על ${name})`;
-      }
+    if (personalGames.length >= 3) {
+      relevantGames = personalGames;
+      sourceLabel   = `${name} (${personalGames.length} משחקים)`;
     } else {
       relevantGames = buildGlobalGames(allGames);
-      sourceLabel = `כלל המשתמשים (${allGames.length} משחקים)`;
+      sourceLabel   = `כלל המשתמשים (אין מספיק נתונים על ${name})`;
     }
 
-    // Compute influence weights from full dataset
     const globalGames = buildGlobalGames(allGames);
-    const influence = computeInfluence(personalGames.length >= 3 ? personalGames : globalGames, globalGames);
+    const influence   = computeInfluence(personalGames.length >= 3 ? personalGames : globalGames, globalGames);
+    const wsls        = computeWinStayLoseShiftWeights(personalGames.length >= 3 ? personalGames : globalGames);
+    const halfLife    = computeHalfLifeFromData(personalGames.length >= 3 ? personalGames : globalGames);
+    const stats       = computeStats(relevantGames);
 
-    const stats = computeStats(relevantGames);
-    currentProfile = { name, games: relevantGames, personalGames, allGames, stats, sourceLabel, influence };
+    currentProfile = { name, games: relevantGames, personalGames, allGames, stats, sourceLabel, influence, wsls, halfLife };
+    roundOutcome   = null;
+    roundOppChoice = null;
+    lastRoundTimestamp = null;
 
     renderStats(stats, sourceLabel);
-    const rec = computeRecommendation(stats, influence, null, null);
+    const rec = buildRecommendation();
     currentRecommendation = rec;
     renderRecommendation(rec);
-    renderInfluence(influence);
+    renderInfluence(influence, wsls);
 
     if (currentMode === 'app') {
-      // On mobile: show the panel inline. On desktop: it's always visible in sidebar.
-      if (!isDesktop()) el('context-panel').classList.add('show');
-      // Reset position context
+      if (window.innerWidth < 860) el('context-panel').classList.add('show');
       ctxPositions = { left: null, center: null, right: null };
       renderSlots();
       renderDraggableChoices();
+      ctxColors = { ...COLOR_DEFAULTS };
+      renderColorRows();
+    } else {
+      // physical mode — show context panel for record only
+      if (window.innerWidth < 860) el('context-panel').classList.add('show');
     }
+    const rp = el('record-panel');
+    if (rp) rp.style.display = 'block';
 
     setStatus('green', `${sourceLabel} · מוכן`);
     show('rec-card');
     show('stats-card');
     el('next-btn').classList.add('show');
-
     watchForCheat(name, rec);
 
-  } catch(e) {
-    setStatus('gray', 'שגיאת חיבור: ' + e.message);
-    console.error(e);
+  } catch(err) {
+    setStatus('gray', 'שגיאת חיבור: ' + err.message);
+    console.error(err);
   }
 };
 
 function buildGlobalGames(allGames) {
-  const doubled = [];
+  const out = [];
   allGames.forEach(g => {
-    if (g.p1Choice) doubled.push({ playerChoice: g.p1Choice, playerPos: g.p1ChoicePosition, playerColors: g.colors });
-    if (g.p2Choice) doubled.push({ playerChoice: g.p2Choice, playerPos: g.p2ChoicePosition, playerColors: g.colors });
+    if (g.p1Choice) out.push({ playerChoice: g.p1Choice, playerPos: g.p1ChoicePosition, playerColors: g.colors, timestamp: g.timestamp, prevOutcome: g.p1PrevOutcome });
+    if (g.p2Choice) out.push({ playerChoice: g.p2Choice, playerPos: g.p2ChoicePosition, playerColors: g.colors, timestamp: g.timestamp, prevOutcome: g.p2PrevOutcome });
   });
-  return doubled;
+  return out;
 }
 
 // ════════════════════════════════════════════════
 // INFLUENCE COMPUTATION
-// How much does position / color historically affect choice?
-// Returns { posWeight, colorWeight } both in [0,1], capped low
 // ════════════════════════════════════════════════
 function computeInfluence(games, globalGames) {
-  // Position influence: for each position, what % deviate from their base rate?
-  // We measure: for games where rock was in position X, how often did they pick rock vs expected?
-  // posInfluence = average |actual_rate_given_pos - base_rate| across all choice×pos combos
-  const posInfluenceScore = measurePositionInfluence(games);
-  const globalPosInfluence = measurePositionInfluence(globalGames);
-  // Blend personal + global
+  const posInfluenceScore   = measurePositionInfluence(games);
+  const globalPosInfluence  = measurePositionInfluence(globalGames);
   const hasPersonal = games !== globalGames;
-  const posWeight = Math.min(
-    (hasPersonal ? 0.5 * posInfluenceScore + 0.5 * globalPosInfluence : globalPosInfluence),
-    0.25 // hard cap: position can influence at most 25% of recommendation
-  );
+  const posWeight   = Math.min(hasPersonal ? 0.5*posInfluenceScore + 0.5*globalPosInfluence : globalPosInfluence, 0.25);
 
-  const colorInfluenceScore = measureColorInfluence(games);
+  const colorInfluenceScore  = measureColorInfluence(games);
   const globalColorInfluence = measureColorInfluence(globalGames);
-  const colorWeight = Math.min(
-    (hasPersonal ? 0.5 * colorInfluenceScore + 0.5 * globalColorInfluence : globalColorInfluence),
-    0.20 // hard cap: color can influence at most 20%
-  );
+  const colorWeight = Math.min(hasPersonal ? 0.5*colorInfluenceScore + 0.5*globalColorInfluence : globalColorInfluence, 0.20);
 
-  return { posWeight, colorWeight, posInfluenceScore, globalPosInfluence, colorInfluenceScore, globalColorInfluence };
+  return { posWeight, colorWeight };
 }
 
 function measurePositionInfluence(games) {
   const choices = ['rock','paper','scissors'];
-  const positions = ['left','center','right'];
-  const total = games.length || 1;
-
-  // base rates
-  const base = {};
-  choices.forEach(c => base[c] = games.filter(g => g.playerChoice === c).length / total);
-
-  // per-position rates
+  const total   = games.length || 1;
+  const base    = {};
+  choices.forEach(c => base[c] = games.filter(g => g.playerChoice===c).length / total);
   let totalDev = 0, count = 0;
-  positions.forEach(pos => {
-    const posGames = games.filter(g => g.playerPos === pos);
-    if (posGames.length < 3) return;
-    choices.forEach(c => {
-      const rate = posGames.filter(g => g.playerChoice === c).length / posGames.length;
-      totalDev += Math.abs(rate - base[c]);
-      count++;
-    });
+  ['left','center','right'].forEach(pos => {
+    const pg = games.filter(g => g.playerPos === pos);
+    if (pg.length < 3) return;
+    choices.forEach(c => { totalDev += Math.abs(pg.filter(g => g.playerChoice===c).length/pg.length - base[c]); count++; });
   });
-  return count > 0 ? totalDev / count : 0;
+  return count > 0 ? totalDev/count : 0;
 }
 
 function measureColorInfluence(games) {
-  // For each game, find the hue of the chosen choice's color
-  // Group by hue bucket (warm/cool/neutral) and measure deviation from base
-  const gamesWithColors = games.filter(g => g.playerColors && g.playerChoice);
-  if (gamesWithColors.length < 6) return 0;
-
+  const gwc = games.filter(g => g.playerColors && g.playerChoice);
+  if (gwc.length < 6) return 0;
   const choices = ['rock','paper','scissors'];
-  const total = gamesWithColors.length;
-  const base = {};
-  choices.forEach(c => base[c] = gamesWithColors.filter(g => g.playerChoice === c).length / total);
-
-  // Bucket by hue: warm (red/orange/yellow 0-60, 300-360), cool (blue/green 60-300)
-  function getHueBucket(hex) {
-    if (!hex) return 'unknown';
-    const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
-    const max = Math.max(r,g,b), min = Math.min(r,g,b), d = max - min;
-    if (d === 0) return 'neutral';
-    let h = max === r ? ((g-b)/d + (g<b?6:0))/6 : max === g ? ((b-r)/d+2)/6 : ((r-g)/d+4)/6;
-    h = Math.round(h * 360);
-    return (h < 60 || h > 300) ? 'warm' : 'cool';
-  }
-
-  let totalDev = 0, bucketCount = 0;
+  const total   = gwc.length;
+  const base    = {};
+  choices.forEach(c => base[c] = gwc.filter(g => g.playerChoice===c).length/total);
+  let totalDev = 0, bCount = 0;
   ['warm','cool','neutral'].forEach(bucket => {
-    const bucketGames = gamesWithColors.filter(g => {
-      const choiceColor = g.playerColors?.[g.playerChoice];
-      return getHueBucket(choiceColor) === bucket;
-    });
-    if (bucketGames.length < 3) return;
-    choices.forEach(c => {
-      const rate = bucketGames.filter(g => g.playerChoice === c).length / bucketGames.length;
-      totalDev += Math.abs(rate - base[c]);
-      bucketCount++;
-    });
+    const bg = gwc.filter(g => hexToHueBucket(g.playerColors?.[g.playerChoice])===bucket);
+    if (bg.length < 3) return;
+    choices.forEach(c => { totalDev += Math.abs(bg.filter(g=>g.playerChoice===c).length/bg.length - base[c]); bCount++; });
   });
-  return bucketCount > 0 ? totalDev / bucketCount : 0;
+  return bCount > 0 ? totalDev/bCount : 0;
 }
 
 // ════════════════════════════════════════════════
 // COMPUTE STATS
 // ════════════════════════════════════════════════
 function computeStats(games) {
-  const counts = { rock: 0, paper: 0, scissors: 0 };
-  const posCounts = { rock: {}, paper: {}, scissors: {} };
-  const colorCounts = { rock: {}, paper: {}, scissors: {} }; // hue bucket counts
-
+  const counts = { rock:0, paper:0, scissors:0 };
+  const posCounts = { rock:{}, paper:{}, scissors:{} };
+  const colorCounts = { rock:{}, paper:{}, scissors:{} };
   games.forEach(g => {
     const c = g.playerChoice;
-    if (counts[c] !== undefined) {
-      counts[c]++;
-      const pos = g.playerPos || 'unknown';
-      posCounts[c][pos] = (posCounts[c][pos] || 0) + 1;
-      // color bucket
-      if (g.playerColors) {
-        const hex = g.playerColors[c];
-        const bucket = hexToHueBucket(hex);
-        colorCounts[c][bucket] = (colorCounts[c][bucket] || 0) + 1;
-      }
-    }
+    if (counts[c] === undefined) return;
+    counts[c]++;
+    const pos = g.playerPos || 'unknown';
+    posCounts[c][pos] = (posCounts[c][pos]||0) + 1;
+    if (g.playerColors) { const b = hexToHueBucket(g.playerColors[c]); colorCounts[c][b] = (colorCounts[c][b]||0)+1; }
   });
-
   const total = counts.rock + counts.paper + counts.scissors;
-  const pcts = {};
-  ['rock','paper','scissors'].forEach(c => {
-    pcts[c] = total > 0 ? (counts[c] / total) : 1/3;
-  });
-
-  const posPrefs = {};
-  ['rock','paper','scissors'].forEach(c => {
-    const pm = posCounts[c];
-    const best = Object.entries(pm).sort((a,b)=>b[1]-a[1])[0];
-    posPrefs[c] = best ? best[0] : 'unknown';
-  });
-
-  return { counts, pcts, total, posCounts, posPrefs, colorCounts };
+  const pcts  = {};
+  ['rock','paper','scissors'].forEach(c => pcts[c] = total>0 ? counts[c]/total : 1/3);
+  return { counts, pcts, total, posCounts, colorCounts };
 }
 
 function hexToHueBucket(hex) {
   if (!hex) return 'unknown';
   try {
-    const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
-    const max = Math.max(r,g,b), min = Math.min(r,g,b), d = max - min;
-    if (d === 0) return 'neutral';
-    let h = max === r ? ((g-b)/d + (g<b?6:0))/6 : max === g ? ((b-r)/d+2)/6 : ((r-g)/d+4)/6;
-    h = Math.round(h * 360);
-    return (h < 60 || h > 300) ? 'warm' : 'cool';
-  } catch(e) { return 'unknown'; }
+    const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+    const max=Math.max(r,g,b), min=Math.min(r,g,b), d=max-min;
+    if (!d) return 'neutral';
+    let h = max===r?((g-b)/d+(g<b?6:0))/6:max===g?((b-r)/d+2)/6:((r-g)/d+4)/6;
+    h = Math.round(h*360);
+    return (h<60||h>300)?'warm':'cool';
+  } catch(e){ return 'unknown'; }
 }
 
 // ════════════════════════════════════════════════
-// COMPUTE RECOMMENDATION
-// Combines: base stats + optional position/color context
+// BUILD RECOMMENDATION
+// Combines: base stats + position + color + win-stay/lose-shift
 // ════════════════════════════════════════════════
-function computeRecommendation(stats, influence, currentPositions, currentColors) {
+function buildRecommendation() {
+  if (!currentProfile) return null;
+  const { stats, influence, wsls, halfLife, lastRound } = currentProfile;
   const choices = ['rock','paper','scissors'];
 
-  // Base probabilities from stats
+  // 1. Base probabilities
   const baseProb = { ...stats.pcts };
-  const baseTotal = baseProb.rock + baseProb.paper + baseProb.scissors;
-  choices.forEach(c => baseProb[c] /= baseTotal); // normalize to sum=1
-
+  const bTotal = baseProb.rock + baseProb.paper + baseProb.scissors;
+  choices.forEach(c => baseProb[c] /= bTotal);
   let adjProb = { ...baseProb };
 
-  // ── Position adjustment ──
-  if (currentPositions && influence) {
-    const posWeight = influence.posWeight; // how much to shift (0-0.25)
+  // 2. Position adjustment
+  if (ctxPositions && influence) {
+    const pw = influence.posWeight;
     choices.forEach(c => {
-      const pos = Object.entries(currentPositions).find(([p,ch]) => ch === c)?.[0];
+      const pos = Object.entries(ctxPositions).find(([p,ch]) => ch===c)?.[0];
       if (!pos) return;
-      // Historical rate of choosing c when c was at this position
-      const posGames = (currentProfile?.games || []).filter(g => g.playerPos === pos);
-      if (posGames.length < 3) return;
-      const histRate = posGames.filter(g => g.playerChoice === c).length / posGames.length;
-      // Shift adjProb toward histRate, scaled by posWeight
-      adjProb[c] = adjProb[c] * (1 - posWeight) + histRate * posWeight;
+      const pg = (currentProfile.games||[]).filter(g => g.playerPos===pos);
+      if (pg.length < 3) return;
+      const histRate = pg.filter(g => g.playerChoice===c).length / pg.length;
+      adjProb[c] = adjProb[c]*(1-pw) + histRate*pw;
     });
   }
 
-  // ── Color adjustment ──
-  if (currentColors && influence) {
-    const colorWeight = influence.colorWeight; // 0-0.20
+  // 3. Color adjustment
+  if (ctxColors && influence) {
+    const cw = influence.colorWeight;
     choices.forEach(c => {
-      const hex = currentColors[c];
+      const hex    = ctxColors[c];
       const bucket = hexToHueBucket(hex);
-      // Historical rate of choosing c when c had this color bucket
-      const colorGames = (currentProfile?.games || []).filter(g => {
-        if (g.playerChoice !== c) return false;
-        return hexToHueBucket(g.playerColors?.[c]) === bucket;
-      });
-      const allCGames = (currentProfile?.games || []).filter(g => g.playerChoice === c);
-      if (allCGames.length < 3) return;
-      // "Color attraction" = do they pick c more when it's this color?
-      const colorAttraction = colorGames.length / Math.max(allCGames.length, 1);
-      // Shift adjProb toward colorAttraction * base, scaled by colorWeight
-      adjProb[c] = adjProb[c] * (1 - colorWeight) + (adjProb[c] * colorAttraction) * colorWeight;
+      const allCG  = (currentProfile.games||[]).filter(g => g.playerChoice===c);
+      if (allCG.length < 3) return;
+      const cg = allCG.filter(g => hexToHueBucket(g.playerColors?.[c])===bucket);
+      const colorAttraction = cg.length / Math.max(allCG.length,1);
+      adjProb[c] = adjProb[c]*(1-cw) + adjProb[c]*colorAttraction*cw;
     });
   }
 
-  // Normalize
+  // 4. Win-stay / Lose-shift adjustment (with temporal decay)
+  const reasonLines = [];
+  let wsEffect = 0, lsEffect = 0;
+
+  if (lastRound && wsls) {
+    const elapsed  = Date.now() - (lastRound.timestamp || Date.now());
+    const decay    = computeDecay(elapsed, halfLife);
+    const { wsWeight, lsWeight } = wsls;
+
+    if (lastRound.outcome === 'win' && wsWeight > 0.01 && decay > 0.05) {
+      // Win-stay: opponent likely repeats their choice
+      // We know what the opponent played? if oppChoice known use it, else infer from our win
+      // If user won with our rec.beat, opponent played mostLikely — stay on that
+      // We boost the probability of opponent repeating their last choice
+      // lastRound.oppChoice: what the opponent actually played
+      if (lastRound.oppChoice) {
+        const effectiveW = wsWeight * decay;
+        choices.forEach(c => {
+          if (c === lastRound.oppChoice) {
+            adjProb[c] = adjProb[c]*(1-effectiveW) + effectiveW;
+          } else {
+            adjProb[c] = adjProb[c]*(1-effectiveW);
+          }
+        });
+        wsEffect = Math.round(effectiveW * 100);
+        reasonLines.push(`🏆 win-stay: יחזור ל${HEB[lastRound.oppChoice]} (${wsEffect}% × ${Math.round(decay*100)}% זיכרון)`);
+      }
+    } else if (lastRound.outcome === 'loss' && lsWeight > 0.01 && decay > 0.05) {
+      // Lose-shift: after losing, opponent shifts to what beat the winner (us)
+      // If we played X and won, opponent played BEATEN_BY[X]. They lost → they shift.
+      // Lose-shift = move to what beats what beat them = BEATEN_BY[BEATEN_BY[their_last]]
+      if (lastRound.oppChoice) {
+        const shifted      = BEATEN_BY[BEATEN_BY[lastRound.oppChoice]]; // shift target
+        const effectiveL   = lsWeight * decay;
+        choices.forEach(c => {
+          if (c === shifted) {
+            adjProb[c] = adjProb[c]*(1-effectiveL) + effectiveL;
+          } else {
+            adjProb[c] = adjProb[c]*(1-effectiveL);
+          }
+        });
+        lsEffect = Math.round(effectiveL * 100);
+        reasonLines.push(`💔 lose-shift: יעבור ל${HEB[shifted]} (${lsEffect}% × ${Math.round(decay*100)}% זיכרון)`);
+      }
+    }
+  }
+
+  // 5. Normalize
   const adjTotal = adjProb.rock + adjProb.paper + adjProb.scissors;
   choices.forEach(c => adjProb[c] /= adjTotal);
 
-  // Find most likely opponent choice and beat it
-  const mostLikely = choices.reduce((a,b) => adjProb[a] > adjProb[b] ? a : b);
-  const beat = BEATS[mostLikely];
-  const confidence = Math.round(adjProb[mostLikely] * 100);
+  // 6. Find best prediction & what beats it
+  const mostLikely = choices.reduce((a,b) => adjProb[a]>adjProb[b] ? a : b);
+  const beat        = BEATS[mostLikely];
+  const confidence  = Math.round(adjProb[mostLikely]*100);
 
-  // Build reason
+  // 7. Build reason text
   const lines = [];
-  const hasContext = currentPositions && Object.values(currentPositions).some(Boolean);
-  const hasColor = currentColors;
-  lines.push(`${currentProfile?.name || 'היריב'} בוחר ${HEB[mostLikely]} ${Math.round(baseProb[mostLikely]*100)}% בבסיס`);
-  if (hasContext && influence?.posWeight > 0.01) {
-    lines.push(`מיקום משפיע ${Math.round(influence.posWeight*100)}% על ההחלטה`);
-  }
-  if (hasColor && influence?.colorWeight > 0.01) {
-    lines.push(`צבע משפיע ${Math.round(influence.colorWeight*100)}% על ההחלטה`);
-  }
+  lines.push(`${currentProfile.name||'היריב'} בוחר ${HEB[mostLikely]} ${Math.round(baseProb[mostLikely]*100)}% בסיס`);
+  if (influence?.posWeight > 0.01 && Object.values(ctxPositions).some(Boolean))
+    lines.push(`📍 מיקום: ${Math.round(influence.posWeight*100)}%`);
+  if (influence?.colorWeight > 0.01 && ctxColors)
+    lines.push(`🎨 צבע: ${Math.round(influence.colorWeight*100)}%`);
+  lines.push(...reasonLines);
   lines.push(`→ שחק ${HEB[beat]}`);
 
-  return { beat, mostLikely, confidence, reason: lines.join('\n'), adjProb };
+  return { beat, mostLikely, confidence, reason: lines.join('\n'), adjProb, wsEffect, lsEffect };
 }
 
-// ── APPLY CONTEXT ──
+// ════════════════════════════════════════════════
+// RECORD ROUND — save game directly from cheat
+// ════════════════════════════════════════════════
+window.setMyChoice = function(choice) {
+  myActualChoice = choice;
+  ['rock','paper','scissors'].forEach(c => el('my-'+c).classList.toggle('active', c===choice));
+  updateSaveBtn();
+};
+
+window.setOppActual = function(choice) {
+  oppActualChoice = choice;
+  ['rock','paper','scissors'].forEach(c => el('opp-'+c).classList.toggle('active', c===choice));
+  updateSaveBtn();
+};
+
+function updateSaveBtn() {
+  el('save-round-btn').disabled = !(myActualChoice && oppActualChoice);
+}
+
+window.saveRoundAndNext = async function() {
+  if (!myActualChoice || !oppActualChoice) return;
+
+  const myName  = el('my-name').value.trim();
+  const oppName = el('player-name').value.trim();
+
+  if (!myName)  { showToast('מלא את השם שלך כדי לשמור'); return; }
+  if (!oppName) { showToast('יש להזין שם יריב'); return; }
+  if (myName.toLowerCase()  === 'unknown') { showToast('"unknown" אינו שם תקין'); return; }
+  if (oppName.toLowerCase() === 'unknown') { showToast('"unknown" אינו שם תקין'); return; }
+
+  // Compute result
+  const result = myActualChoice === oppActualChoice ? 'draw'
+    : BEATS[myActualChoice] === oppActualChoice ? 'p1_win' : 'p2_win';
+
+  // Build game record — p1 = me, p2 = opponent
+  const gameRecord = {
+    mode: currentMode === 'app' ? 'online' : 'local',
+    p1: myName,
+    p2: oppName,
+    p1Choice: myActualChoice,
+    p2Choice: oppActualChoice,
+    p1ChoicePosition: 'unknown',
+    p2ChoicePosition: ctxPositions ? (
+      Object.entries(ctxPositions).find(([,v]) => v === oppActualChoice)?.[0] || 'unknown'
+    ) : 'unknown',
+    result,
+    timestamp: Date.now(),
+    colors: { ...ctxColors }
+  };
+
+  const btn = el('save-round-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ שומר...';
+
+  try {
+    await push(ref(db, 'games'), gameRecord);
+    showToast('✅ נשמר! טוען נתונים מעודכנים...');
+
+    // Reset record UI
+    myActualChoice = null; oppActualChoice = null;
+    ['rock','paper','scissors'].forEach(c => {
+      el('my-'+c).classList.remove('active');
+      el('opp-'+c).classList.remove('active');
+    });
+    btn.textContent = '💾 שמור וסיבוב הבא';
+
+    // Reset positions for next round
+    ctxPositions = { left: null, center: null, right: null };
+    renderSlots();
+    renderDraggableChoices();
+
+    // Reload profile with fresh data
+    await loadProfile();
+
+  } catch(err) {
+    console.error(err);
+    showToast('❌ שגיאה בשמירה: ' + err.message);
+    btn.disabled = false;
+    btn.textContent = '💾 שמור וסיבוב הבא';
+  }
+};
+
 window.applyContext = function() {
   if (!currentProfile) return;
-  const posComplete = Object.values(ctxPositions).every(Boolean);
-  if (!posComplete) { showToast('מלא את כל המיקומים קודם'); return; }
-
-  const rec = computeRecommendation(currentProfile.stats, currentProfile.influence, ctxPositions, ctxColors);
+  if (!Object.values(ctxPositions).every(Boolean)) { showToast('מלא את כל המיקומים קודם'); return; }
+  const rec = buildRecommendation();
   currentRecommendation = rec;
   renderRecommendation(rec);
-  renderInfluence(currentProfile.influence);
+  renderInfluence(currentProfile.influence, currentProfile.wsls);
   showToast('המלצה עודכנה לפי הסיבוב!');
 };
 
 // ── NEXT ROUND ──
 window.nextRound = function() {
   if (!currentProfile) return;
-  // Reset position context for new round
   ctxPositions = { left: null, center: null, right: null };
+  ctxColors = { ...COLOR_DEFAULTS };
   renderSlots();
   renderDraggableChoices();
-  // Recalculate without position/color context
-  const rec = computeRecommendation(currentProfile.stats, currentProfile.influence, null, null);
+  renderColorRows();
+  roundOutcome = null; roundOppChoice = null;
+  myActualChoice = null; oppActualChoice = null;
+  ['rock','paper','scissors'].forEach(c => {
+    el('my-'+c)?.classList.remove('active');
+    el('opp-'+c)?.classList.remove('active');
+  });
+  el('save-round-btn').disabled = true;
+  const rec = buildRecommendation();
   currentRecommendation = rec;
   renderRecommendation(rec);
-  showToast('סיבוב חדש — הכנס את הסדר שלך');
+  showToast('סיבוב חדש — הכנס מיקומים');
 };
 
-// ── RENDER RECOMMENDATION ──
+// ── RENDER ──
 function renderRecommendation(rec) {
+  if (!rec) return;
   const { beat, confidence, reason } = rec;
-  el('rec-emoji').textContent = EMOJI[beat];
-  el('rec-name').textContent = HEB[beat];
-  el('rec-name').className = 'rec-name ' + beat;
+  el('rec-emoji').textContent  = EMOJI[beat];
+  el('rec-name').textContent   = HEB[beat];
+  el('rec-name').className     = 'rec-name ' + beat;
   el('rec-reason').textContent = reason;
-  el('conf-fill').style.width = Math.min(confidence, 99) + '%';
-  el('conf-pct').textContent = confidence + '%';
+  el('conf-fill').style.width  = Math.min(confidence,99)+'%';
+  el('conf-pct').textContent   = confidence+'%';
 }
 
-// ── RENDER STATS ──
 function renderStats(stats, sourceLabel) {
   el('stats-count').textContent = `${stats.total} בחירות · ${sourceLabel}`;
   const maxPct = Math.max(stats.pcts.rock, stats.pcts.paper, stats.pcts.scissors);
   ['rock','paper','scissors'].forEach(c => {
-    const pct = Math.round(stats.pcts[c] * 100);
-    el('bar-' + c).style.width = (maxPct > 0 ? (stats.pcts[c]/maxPct)*100 : 33) + '%';
-    el('pct-' + c).textContent = pct + '%';
+    el('bar-'+c).style.width = (maxPct>0?(stats.pcts[c]/maxPct)*100:33)+'%';
+    el('pct-'+c).textContent = Math.round(stats.pcts[c]*100)+'%';
   });
 }
 
-// ── RENDER INFLUENCE ──
-function renderInfluence(influence) {
+function renderInfluence(influence, wsls) {
   if (!influence) return;
-  el('inf-pos-val').textContent = Math.round(influence.posWeight * 100) + '%';
-  el('inf-col-val').textContent = Math.round(influence.colorWeight * 100) + '%';
-  const baseWeight = Math.round((1 - influence.posWeight - influence.colorWeight) * 100);
-  el('inf-base-val').textContent = baseWeight + '%';
+  el('inf-pos-val').textContent = Math.round(influence.posWeight*100)+'%';
+  el('inf-col-val').textContent = Math.round(influence.colorWeight*100)+'%';
+  if (wsls) {
+    el('inf-ws-val').textContent = Math.round(wsls.wsRate*100)+'%';
+    el('inf-ls-val').textContent = Math.round(wsls.lsRate*100)+'%';
+  }
 }
 
 // ── CHEAT DETECTION ──
 function watchForCheat(playerName, rec) {
   if (!playerName) return;
   const watchStart = Date.now();
-  const WINDOW_MS = 30000;
-  const unsub = onValue(ref(db, 'games'), async (snap) => {
+  const WINDOW_MS  = 30000;
+  const unsub = onValue(ref(db, 'games'), async snap => {
     if (!snap.exists()) return;
     const now = Date.now();
     if (now - watchStart > WINDOW_MS) { unsub(); return; }
-    const games = Object.entries(snap.val());
-    for (const [id, g] of games) {
+    for (const [id, g] of Object.entries(snap.val())) {
       if (g.cheated) continue;
       if (!g.timestamp || now - g.timestamp > WINDOW_MS) continue;
-      const involvesPlayer = g.p1 === playerName || g.p2 === playerName;
-      if (!involvesPlayer) continue;
+      if (g.p1 !== playerName && g.p2 !== playerName) continue;
       const myChoice = g.p1 === playerName ? g.p1Choice : g.p2Choice;
       if (myChoice === rec.beat) {
-        try {
-          await update(ref(db, 'games/' + id), { cheated: true });
-        } catch(e) { console.warn('[cheat] could not mark', e); }
+        try { await update(ref(db, 'games/'+id), { cheated: true }); }
+        catch(e) { console.warn('[cheat]', e); }
       }
     }
   });
-  setTimeout(() => { try { unsub(); } catch(e){} }, WINDOW_MS + 1000);
+  setTimeout(() => { try { unsub(); } catch(e){} }, WINDOW_MS+1000);
 }
 
-// ── STATUS ──
 function setStatus(color, text) {
   el('status-dot').className = 'status-dot ' + color;
   el('status-text').textContent = text;
