@@ -17,7 +17,7 @@
     --muted: #666680;
     --rock: #ff6b6b;
     --paper: #4dabf7;
-    --scissors: #69db7c;
+    --scissors: #69db7c; /* overridden by JS each session */
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -450,6 +450,32 @@
   .history-item.L { background: rgba(255,77,109,0.1); color: var(--accent); border-color: rgba(255,77,109,0.3); }
   .history-item.D { background: rgba(255,213,77,0.08); color: var(--accent3); border-color: rgba(255,213,77,0.25); }
 
+
+  /* Cooldown progress bar */
+  .cooldown-bar-wrap {
+    height: 4px;
+    background: var(--border);
+    border-radius: 4px;
+    margin: 10px 0 4px;
+    overflow: hidden;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .cooldown-bar-wrap.active { opacity: 1; }
+  .cooldown-bar {
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(90deg, var(--accent2), var(--accent3));
+    border-radius: 4px;
+    transform-origin: left;
+    transition: transform linear;
+  }
+  .choice-btn:disabled {
+    opacity: 0.35 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+  }
+
   /* Shake animation for choices */
   @keyframes shake {
     0%,100% { transform: translateX(0); }
@@ -605,7 +631,7 @@
 
       <div class="result-banner empty" id="c-result">בחר את המהלך שלך</div>
 
-      <div class="choices">
+      <div class="choices" id="c-choices">
         <button class="choice-btn rock" onclick="playComputer('rock')">
           <span class="e">✊</span><span class="n">אבן</span>
         </button>
@@ -616,6 +642,7 @@
           <span class="e">✂️</span><span class="n">מספריים</span>
         </button>
       </div>
+      <div class="cooldown-bar-wrap" id="c-cooldown-wrap"><div class="cooldown-bar" id="c-cooldown-bar"></div></div>
     </div>
 
     <div class="card" style="padding:14px 20px;">
@@ -704,6 +731,7 @@
               <span class="e">✂️</span><span class="n">מספריים</span>
             </button>
           </div>
+          <div class="cooldown-bar-wrap" id="l-cooldown-wrap"><div class="cooldown-bar" id="l-cooldown-bar"></div></div>
 
           <div id="local-next-btn" class="hidden mt-16">
             <button class="btn btn-primary btn-full" onclick="localNextRound()">סיבוב הבא ↩</button>
@@ -818,6 +846,7 @@
             <span class="e">✂️</span><span class="n">מספריים</span>
           </button>
         </div>
+        <div class="cooldown-bar-wrap" id="o-cooldown-wrap"><div class="cooldown-bar" id="o-cooldown-bar"></div></div>
       </div>
 
       <div class="card" style="padding:14px 20px;">
@@ -858,6 +887,11 @@ const db = getDatabase(app);
 // ==================== GLOBALS ====================
 const CHOICES = { rock: '✊', paper: '📄', scissors: '✂️' };
 const NAMES = { rock: 'אבן', paper: 'נייר', scissors: 'מספריים' };
+const RESERVED_NAMES = ['מחשב', 'computer', 'cpu', 'bot', 'ai', 'בוט'];
+
+function isReservedName(name) {
+  return RESERVED_NAMES.includes(name.trim().toLowerCase());
+}
 
 let currentMode = 'computer';
 let allPlayers = []; // cached from Firebase
@@ -865,6 +899,7 @@ let allPlayers = []; // cached from Firebase
 // Computer state
 let cScore = { wins: 0, losses: 0, draws: 0 };
 let cPlayerName = null;
+let cpuPreChoice = null; // CPU decides BEFORE player clicks
 
 // Local state
 let lState = { phase: 'p1', p1Choice: null, p2Choice: null };
@@ -914,6 +949,132 @@ function getWinner(a, b) {
 function randomChoice() {
   const opts = ['rock', 'paper', 'scissors'];
   return opts[Math.floor(Math.random() * 3)];
+}
+
+// Track button positions per container: { rock: 'left'|'center'|'right', ... }
+const buttonPositions = {};
+
+function shuffleChoiceButtons(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const buttons = Array.from(container.querySelectorAll('button'));
+  if (buttons.length < 3) return;
+
+  // Fisher-Yates shuffle
+  for (let i = buttons.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [buttons[i], buttons[j]] = [buttons[j], buttons[i]];
+  }
+
+  // Re-append in shuffled order and record positions
+  const posNames = ['left', 'center', 'right'];
+  buttonPositions[containerId] = {};
+  buttons.forEach((btn, idx) => {
+    container.appendChild(btn);
+    // Detect choice value from onclick attribute
+    const onclickAttr = btn.getAttribute('onclick') || '';
+    const match = onclickAttr.match(/'(rock|paper|scissors)'/);
+    if (match) {
+      buttonPositions[containerId][match[1]] = posNames[idx];
+    }
+  });
+}
+
+function getChoicePosition(containerId, choice) {
+  return (buttonPositions[containerId] && buttonPositions[containerId][choice]) || 'unknown';
+}
+
+
+
+// ==================== CHOICE COLORS ====================
+// 12 vivid hues to pick from (avoid near-identical pairs)
+const HUE_POOL = [0, 30, 60, 100, 150, 190, 220, 260, 290, 320, 345, 175];
+
+function hslToHex(h, s, l) {
+  s /= 100; l /= 100;
+  const a = s * Math.min(l, 1 - l);
+  const f = n => {
+    const k = (n + h / 30) % 12;
+    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    return Math.round(255 * color).toString(16).padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+
+function randomDistinctHues() {
+  // Pick 3 hues at least 60° apart from the pool
+  const shuffled = [...HUE_POOL].sort(() => Math.random() - 0.5);
+  const chosen = [shuffled[0]];
+  for (const h of shuffled.slice(1)) {
+    if (chosen.every(c => Math.min(Math.abs(c - h), 360 - Math.abs(c - h)) >= 60)) {
+      chosen.push(h);
+      if (chosen.length === 3) break;
+    }
+  }
+  // Fallback if not enough distinct hues (shouldn't happen with our pool)
+  while (chosen.length < 3) chosen.push((chosen[chosen.length-1] + 120) % 360);
+  return chosen;
+}
+
+let sessionColors = { rock: null, paper: null, scissors: null };
+
+function assignSessionColors() {
+  const hues = randomDistinctHues();
+  const labels = ['rock', 'paper', 'scissors'];
+  // Shuffle which label gets which hue
+  const shuffledLabels = [...labels].sort(() => Math.random() - 0.5);
+  shuffledLabels.forEach((label, i) => {
+    const hex = hslToHex(hues[i], 85, 65);
+    const hexDim = hslToHex(hues[i], 70, 40);
+    sessionColors[label] = { hex, hue: hues[i] };
+    document.documentElement.style.setProperty('--' + label, hex);
+    // Also update the choice-display box-shadow inline via a style rule
+    // We'll inject a dynamic <style> tag
+  });
+  // Inject dynamic CSS for box-shadows (can't use rgba() with CSS vars easily)
+  let dynStyle = document.getElementById('dynamic-colors');
+  if (!dynStyle) { dynStyle = document.createElement('style'); dynStyle.id = 'dynamic-colors'; document.head.appendChild(dynStyle); }
+  dynStyle.textContent = `
+    .choice-display.rock { border-color: ${sessionColors.rock.hex}; box-shadow: 0 0 20px ${sessionColors.rock.hex}44; }
+    .choice-display.paper { border-color: ${sessionColors.paper.hex}; box-shadow: 0 0 20px ${sessionColors.paper.hex}44; }
+    .choice-display.scissors { border-color: ${sessionColors.scissors.hex}; box-shadow: 0 0 20px ${sessionColors.scissors.hex}44; }
+    .choice-btn.rock:hover:not(:disabled) { border-color: ${sessionColors.rock.hex}; background: ${sessionColors.rock.hex}1a; }
+    .choice-btn.paper:hover:not(:disabled) { border-color: ${sessionColors.paper.hex}; background: ${sessionColors.paper.hex}1a; }
+    .choice-btn.scissors:hover:not(:disabled) { border-color: ${sessionColors.scissors.hex}; background: ${sessionColors.scissors.hex}1a; }
+  `;
+}
+
+// Assign once per session on load
+assignSessionColors();
+
+// ==================== COOLDOWN ====================
+const COOLDOWN_MS = 2000;
+const cooldownState = {};
+
+function startCooldown(containerId, barWrapId, barId, onDone) {
+  // Disable buttons
+  document.getElementById(containerId).querySelectorAll('button').forEach(b => b.disabled = true);
+
+  const wrap = document.getElementById(barWrapId);
+  const bar = document.getElementById(barId);
+  wrap.classList.add('active');
+  bar.style.transition = 'none';
+  bar.style.transform = 'scaleX(1)';
+
+  // Force reflow so transition starts fresh
+  bar.getBoundingClientRect();
+  bar.style.transition = `transform ${COOLDOWN_MS}ms linear`;
+  bar.style.transform = 'scaleX(0)';
+
+  if (cooldownState[containerId]) clearTimeout(cooldownState[containerId]);
+  cooldownState[containerId] = setTimeout(() => {
+    wrap.classList.remove('active');
+    bar.style.transition = 'none';
+    bar.style.transform = 'scaleX(1)';
+    if (onDone) onDone();
+    // Re-enable buttons AFTER onDone (so onDone can shuffle first)
+    document.getElementById(containerId).querySelectorAll('button').forEach(b => b.disabled = false);
+  }, COOLDOWN_MS);
 }
 
 // ==================== PLAYERS DB ====================
@@ -1113,6 +1274,13 @@ window.startComputerGame = function() {
     inputEl.classList.add('input-error');
     return;
   }
+  if (isReservedName(name)) {
+    errEl.textContent = 'שם זה שמור למחשב, בחר שם אחר';
+    errEl.classList.add('show');
+    inputEl.classList.add('input-error');
+    return;
+  }
+  errEl.textContent = 'נא להכניס שם';
   errEl.classList.remove('show');
   inputEl.classList.remove('input-error');
   cPlayerName = name;
@@ -1129,6 +1297,8 @@ window.startComputerGame = function() {
   setDisplay(document.getElementById('c-cpu-display'), null, false);
   document.getElementById('c-name-setup').classList.add('hidden');
   document.getElementById('c-game').classList.remove('hidden');
+  shuffleChoiceButtons('c-choices');
+  preCpuChoice(); // CPU decides its first move before player sees the board
 };
 
 window.resetComputerMode = function() {
@@ -1136,10 +1306,21 @@ window.resetComputerMode = function() {
   document.getElementById('c-name-setup').classList.remove('hidden');
   document.getElementById('c-name-input').value = '';
   cPlayerName = null;
+  cpuPreChoice = null;
 };
 
+function preCpuChoice() {
+  cpuPreChoice = randomChoice();
+  // Show a "thinking" animation on CPU side - it already decided but won't reveal
+  const cpuEl = document.getElementById('c-cpu-display');
+  cpuEl.textContent = '🤔';
+  cpuEl.className = 'choice-display';
+}
+
 window.playComputer = function(choice) {
-  const cpu = randomChoice();
+  const cpu = cpuPreChoice || randomChoice(); // use pre-rolled choice
+  cpuPreChoice = null;
+  const choicePos = getChoicePosition('c-choices', choice);
   setDisplay(document.getElementById('c-player-display'), choice);
   setDisplay(document.getElementById('c-cpu-display'), cpu);
 
@@ -1176,7 +1357,15 @@ window.playComputer = function(choice) {
     p1Choice: choice,
     p2Choice: cpu,
     result: r === 'draw' ? 'draw' : r === 'a' ? 'p1_win' : 'p2_win',
-    winner: r === 'draw' ? null : r === 'a' ? cPlayerName : 'מחשב'
+    winner: r === 'draw' ? null : r === 'a' ? cPlayerName : 'מחשב',
+    p1ChoicePosition: choicePos,
+    colors: { rock: sessionColors.rock.hex, paper: sessionColors.paper.hex, scissors: sessionColors.scissors.hex }
+  });
+
+  // Start cooldown before next round
+  startCooldown('c-choices', 'c-cooldown-wrap', 'c-cooldown-bar', () => {
+    shuffleChoiceButtons('c-choices');
+    preCpuChoice();
   });
 };
 
@@ -1189,7 +1378,13 @@ window.startLocalGame = function() {
     document.getElementById('l-name1-err').classList.add('show');
     document.getElementById('l-name1').classList.add('input-error');
     valid = false;
+  } else if (isReservedName(n1)) {
+    document.getElementById('l-name1-err').textContent = 'שם זה שמור למחשב, בחר שם אחר';
+    document.getElementById('l-name1-err').classList.add('show');
+    document.getElementById('l-name1').classList.add('input-error');
+    valid = false;
   } else {
+    document.getElementById('l-name1-err').textContent = 'נא להכניס שם';
     document.getElementById('l-name1-err').classList.remove('show');
     document.getElementById('l-name1').classList.remove('input-error');
   }
@@ -1197,7 +1392,13 @@ window.startLocalGame = function() {
     document.getElementById('l-name2-err').classList.add('show');
     document.getElementById('l-name2').classList.add('input-error');
     valid = false;
+  } else if (isReservedName(n2)) {
+    document.getElementById('l-name2-err').textContent = 'שם זה שמור למחשב, בחר שם אחר';
+    document.getElementById('l-name2-err').classList.add('show');
+    document.getElementById('l-name2').classList.add('input-error');
+    valid = false;
   } else {
+    document.getElementById('l-name2-err').textContent = 'נא להכניס שם';
     document.getElementById('l-name2-err').classList.remove('show');
     document.getElementById('l-name2').classList.remove('input-error');
   }
@@ -1231,11 +1432,13 @@ function resetLocalRound() {
   document.getElementById('local-pass-p1').classList.add('hidden');
   document.getElementById('local-pass-p2').classList.add('hidden');
   document.getElementById('local-game').classList.remove('hidden');
+  shuffleChoiceButtons('local-choices');
 }
 
 window.localChoice = function(choice) {
   if (lState.phase === 'p1') {
     lState.p1Choice = choice;
+    lState.p1ChoicePosition = getChoicePosition('local-choices', choice);
     // Show "chosen" on p1 side as lock icon
     document.getElementById('l-p1-display').textContent = '🔒';
     document.getElementById('l-p1-display').className = 'choice-display';
@@ -1245,6 +1448,7 @@ window.localChoice = function(choice) {
     document.getElementById('local-pass-p1').classList.remove('hidden');
   } else if (lState.phase === 'p2') {
     lState.p2Choice = choice;
+    lState.p2ChoicePosition = getChoicePosition('local-choices', choice);
     document.getElementById('l-p2-display').textContent = '🔒';
     document.getElementById('l-p2-display').className = 'choice-display';
     document.getElementById('local-choices').querySelectorAll('button').forEach(b => b.disabled = true);
@@ -1260,6 +1464,7 @@ window.showLocalP2 = function() {
   document.getElementById('local-game').classList.remove('hidden');
   document.getElementById('local-choices').querySelectorAll('button').forEach(b => b.disabled = false);
   document.getElementById('l-result').textContent = `${lNames.p2} בוחר...`;
+  shuffleChoiceButtons('local-choices');
 };
 
 window.showLocalP1 = function() {
@@ -1307,12 +1512,16 @@ function revealLocal() {
     p1Choice: p1,
     p2Choice: p2,
     result: r === 'draw' ? 'draw' : r === 'a' ? 'p1_win' : 'p2_win',
-    winner: r === 'draw' ? null : r === 'a' ? lNames.p1 : lNames.p2
+    winner: r === 'draw' ? null : r === 'a' ? lNames.p1 : lNames.p2,
+    p1ChoicePosition: lState.p1ChoicePosition || 'unknown',
+    p2ChoicePosition: lState.p2ChoicePosition || 'unknown',
+    colors: { rock: sessionColors.rock.hex, paper: sessionColors.paper.hex, scissors: sessionColors.scissors.hex }
   });
 }
 
 window.localNextRound = function() {
-  resetLocalRound();
+  resetLocalRound(true); // skipEnable=true, cooldown will re-enable
+  startCooldown('local-choices', 'l-cooldown-wrap', 'l-cooldown-bar', null);
 };
 
 // ==================== ONLINE MODE ====================
@@ -1400,6 +1609,7 @@ function showOnlineGame() {
   document.getElementById('o-result').className = 'result-banner empty';
   document.getElementById('o-result').textContent = 'בחר את המהלך שלך';
   document.getElementById('online-choices').querySelectorAll('button').forEach(b => b.disabled = false);
+  shuffleChoiceButtons('online-choices');
 }
 
 function listenRoom(code) {
@@ -1463,6 +1673,7 @@ function listenRoom(code) {
 
       // Only p1 writes the game record (avoid duplicate)
       if (oState.myId === 'p1') {
+        const myPos = oState.myChoicePosition || 'unknown';
         saveGame({
           mode: 'online',
           roomCode: oState.roomCode,
@@ -1471,7 +1682,9 @@ function listenRoom(code) {
           p1Choice,
           p2Choice,
           result: gameResult,
-          winner: winnerName
+          winner: winnerName,
+          p1ChoicePosition: oState.myId === 'p1' ? myPos : 'unknown',
+          colors: { rock: sessionColors.rock.hex, paper: sessionColors.paper.hex, scissors: sessionColors.scissors.hex }
         });
       }
 
@@ -1508,6 +1721,8 @@ function listenRoom(code) {
         document.getElementById('o-result').textContent = 'בחר את המהלך שלך';
         document.getElementById('online-choices').querySelectorAll('button').forEach(b => b.disabled = false);
         oState.myChoice = null;
+        oState.myChoicePosition = null;
+        shuffleChoiceButtons('online-choices');
       }, 2500);
     } else if (data[oppId] && data[oppId].choice && !data[oState.myId]?.choice) {
       // Opponent chose, waiting for me
@@ -1521,6 +1736,7 @@ window.onlineChoice = async function(choice) {
   if (!db || !oState.roomCode) return;
   document.getElementById('online-choices').querySelectorAll('button').forEach(b => b.disabled = true);
   oState.myChoice = choice;
+  oState.myChoicePosition = getChoicePosition('online-choices', choice);
   oState.waiting = true;
 
   setDisplay(document.getElementById('o-my-display'), choice);
@@ -1583,6 +1799,13 @@ function getOnlineNameOrError() {
     document.getElementById('online-username').classList.add('input-error');
     return null;
   }
+  if (isReservedName(name)) {
+    document.getElementById('o-name-err').textContent = 'שם זה שמור למחשב, בחר שם אחר';
+    document.getElementById('o-name-err').classList.add('show');
+    document.getElementById('online-username').classList.add('input-error');
+    return null;
+  }
+  document.getElementById('o-name-err').textContent = 'נא להכניס שם';
   document.getElementById('o-name-err').classList.remove('show');
   document.getElementById('online-username').classList.remove('input-error');
   return name;

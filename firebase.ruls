@@ -18,14 +18,17 @@
       ".read": true,
       "$gameId": {
         ".write": "!data.exists()",
-        ".validate": "newData.hasChildren(['mode', 'p1', 'p2', 'p1Choice', 'p2Choice', 'result', 'timestamp']) && newData.child('mode').val().matches(/^(computer|local|online)$/) && newData.child('p1Choice').val().matches(/^(rock|paper|scissors)$/) && newData.child('p2Choice').val().matches(/^(rock|paper|scissors)$/) && newData.child('result').val().matches(/^(p1_win|p2_win|draw)$/) && newData.child('timestamp').isNumber()"
+        ".validate": "newData.hasChildren(['mode', 'p1', 'p2', 'p1Choice', 'p2Choice', 'result', 'timestamp']) && newData.child('mode').val().matches(/^(computer|local|online)$/) && newData.child('p1Choice').val().matches(/^(rock|paper|scissors)$/) && newData.child('p2Choice').val().matches(/^(rock|paper|scissors)$/) && newData.child('result').val().matches(/^(p1_win|p2_win|draw)$/) && newData.child('timestamp').isNumber()",
+        "p1ChoicePosition": { ".validate": "!newData.exists() || newData.val().matches(/^(left|center|right|unknown)$/)" },
+        "p2ChoicePosition": { ".validate": "!newData.exists() || newData.val().matches(/^(left|center|right|unknown)$/)" },
+        "$other": { ".validate": true }
       }
     },
     "rooms": {
       "$roomCode": {
         ".read": true,
-        ".write": "newData.exists() || data.exists()",
-        ".validate": "newData.hasChildren(['p1', 'createdAt'])",
+        ".write": "newData.exists() || data.exists() || (data.child('lastActivity').exists() && (now - data.child('lastActivity').val()) > 900000)",
+        ".validate": "!newData.exists() || newData.hasChildren(['p1', 'createdAt'])",
         "p1": {
           ".validate": "newData.hasChildren(['name']) && newData.child('name').isString() && newData.child('name').val().length >= 1"
         },
