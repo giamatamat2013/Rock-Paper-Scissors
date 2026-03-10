@@ -925,7 +925,10 @@
   </div>
   <div class="setup-row">
     <div class="setup-label">שמי</div>
-    <input type="text" class="name-input" id="my-name" placeholder="השם שלי *" autocomplete="off" style="flex:1">
+    <div class="input-wrap" id="my-name-wrap" style="flex:1">
+      <input type="text" class="name-input" id="my-name" placeholder="השם שלי *" autocomplete="off" oninput="onMyNameInput()" onkeydown="onMyNameKeydown(event)">
+      <div class="ac-drop" id="my-ac-drop"></div>
+    </div>
   </div>
   <div class="setup-row">
     <div class="setup-label">יריב</div>
@@ -1174,6 +1177,10 @@ let lastRoundTimestamp = null; // ms timestamp of last round
 let myActualChoice  = null; // what I played
 let oppActualChoice = null; // what opponent played
 
+// Session history — sequence of opponent moves this session (for streak/transition)
+// Each entry: { oppChoice, outcome (from user's POV), timestamp }
+let sessionHistory = [];
+
 // ── CONSTANTS ──
 const EMOJI    = { rock: '✊', paper: '📄', scissors: '✂️' };
 const HEB      = { rock: 'אבן', paper: 'נייר', scissors: 'מספריים' };
@@ -1207,6 +1214,14 @@ window.setMode = function(mode) {
   // Remove ctx-body padding in physical mode (record-panel handles its own spacing)
   el('ctx-body').style.padding      = isPhysical ? '0' : '';
   el('ctx-body').style.gap          = isPhysical ? '0' : '';
+  // record-panel: in physical mode remove the separator border and add outer padding
+  const rp = el('record-panel');
+  if (rp) {
+    rp.style.borderTop    = isPhysical ? 'none' : '';
+    rp.style.paddingTop   = isPhysical ? '0' : '';
+    rp.style.marginTop    = isPhysical ? '0' : '';
+    rp.style.padding      = isPhysical ? '12px 16px' : '';
+  }
 
   if (window.innerWidth < 860) {
     const panel = el('context-panel');
@@ -1247,7 +1262,36 @@ window.onNameKeydown = function(e) {
   else if (e.key==='Enter') { e.preventDefault(); if (acHighlight>=0&&items[acHighlight]) acPick(items[acHighlight].dataset.name); else smartUpdate(); }
   else if (e.key==='Escape') drop.classList.remove('show');
 };
-document.addEventListener('click', e => { if (!e.target.closest('#name-wrap')) el('ac-drop').classList.remove('show'); });
+
+let myAcHighlight = -1;
+window.onMyNameInput = function() {
+  const val  = el('my-name').value.trim().toLowerCase();
+  const drop = el('my-ac-drop');
+  myAcHighlight = -1;
+  if (!val) { drop.classList.remove('show'); return; }
+  const matches = allPlayers.filter(p => p.toLowerCase().includes(val)).slice(0, 7);
+  if (!matches.length) { drop.classList.remove('show'); return; }
+  drop.innerHTML = matches.map((p, i) => {
+    const idx = p.toLowerCase().indexOf(val);
+    const disp = p.slice(0,idx) + '<strong style="color:var(--green)">' + p.slice(idx, idx+val.length) + '</strong>' + p.slice(idx+val.length);
+    return `<div class="ac-item" data-name="${p}" data-i="${i}" onmousedown="myAcPick('${p.replace(/'/g,"\\'")}')">👤 ${disp}</div>`;
+  }).join('');
+  drop.classList.add('show');
+};
+window.myAcPick = function(name) { el('my-name').value = name; el('my-ac-drop').classList.remove('show'); };
+window.onMyNameKeydown = function(e) {
+  const drop  = el('my-ac-drop');
+  const items = drop.querySelectorAll('.ac-item');
+  if (!drop.classList.contains('show') || !items.length) { if (e.key==='Enter') { e.preventDefault(); smartUpdate(); } return; }
+  if (e.key==='ArrowDown') { e.preventDefault(); myAcHighlight=Math.min(myAcHighlight+1,items.length-1); items.forEach((x,i)=>x.classList.toggle('hl',i===myAcHighlight)); }
+  else if (e.key==='ArrowUp') { e.preventDefault(); myAcHighlight=Math.max(myAcHighlight-1,0); items.forEach((x,i)=>x.classList.toggle('hl',i===myAcHighlight)); }
+  else if (e.key==='Enter') { e.preventDefault(); if (myAcHighlight>=0&&items[myAcHighlight]) myAcPick(items[myAcHighlight].dataset.name); else smartUpdate(); }
+  else if (e.key==='Escape') drop.classList.remove('show');
+};
+document.addEventListener('click', e => {
+  if (!e.target.closest('#name-wrap'))    el('ac-drop').classList.remove('show');
+  if (!e.target.closest('#my-name-wrap')) el('my-ac-drop').classList.remove('show');
+});
 
 // ── SMART UPDATE: single entry point for load + refresh ──
 window.smartUpdate = function() {
@@ -1393,6 +1437,164 @@ function computeWinStayLoseShiftWeights(games) {
   return { wsRate, lsRate, wsWeight, lsWeight, wsTotal, lsTotal };
 }
 
+// ════════════════════════════════════════════════
+// NEW: TRANSITION BIAS
+// What does the player pick after (prevChoice, outcome)?
+// e.g. "after playing rock and losing, they almost always switch to scissors"
+// ════════════════════════════════════════════════
+function computeTransitionBias(games) {
+  const choices  = ['rock','paper','scissors'];
+  const outcomes = ['win','loss','tie'];
+  const trans = {};
+  choices.forEach(prev => {
+    trans[prev] = {};
+    outcomes.forEach(out => { trans[prev][out] = { rock:0, paper:0, scissors:0, total:0 }; });
+  });
+
+  const sorted = games.filter(g => g.timestamp && choices.includes(g.playerChoice))
+    .sort((a,b) => a.timestamp - b.timestamp);
+
+  for (let i = 1; i < sorted.length; i++) {
+    const g = sorted[i], prev = sorted[i-1];
+    if (!choices.includes(prev.playerChoice)) continue;
+    const out = g.prevOutcome;
+    if (!outcomes.includes(out)) continue;
+    trans[prev.playerChoice][out][g.playerChoice]++;
+    trans[prev.playerChoice][out].total++;
+  }
+
+  // Convert to probabilities (only if enough data per cell)
+  const probs = {};
+  choices.forEach(prev => {
+    probs[prev] = {};
+    outcomes.forEach(out => {
+      const t = trans[prev][out];
+      probs[prev][out] = t.total >= 4 ? {
+        rock: t.rock/t.total, paper: t.paper/t.total, scissors: t.scissors/t.total, total: t.total
+      } : null;
+    });
+  });
+
+  // Weight = avg deviation from base rates across all populated cells
+  const overallBase = { rock:0, paper:0, scissors:0 };
+  let tot = 0;
+  sorted.forEach(g => { if (choices.includes(g.playerChoice)) { overallBase[g.playerChoice]++; tot++; } });
+  if (tot > 0) choices.forEach(c => overallBase[c] /= tot);
+
+  let totalDev = 0, cnt = 0;
+  choices.forEach(prev => outcomes.forEach(out => {
+    const p = probs[prev][out];
+    if (!p) return;
+    choices.forEach(c => { totalDev += Math.abs(p[c] - overallBase[c]); cnt++; });
+  }));
+
+  const weight = cnt >= 3 ? Math.min((totalDev / cnt) * 2.0, 0.35) : 0;
+  return { probs, weight };
+}
+
+// ════════════════════════════════════════════════
+// NEW: POST-TIE BIAS
+// What does this player pick right after a tie?
+// Many players have a strong subconscious preference here
+// ════════════════════════════════════════════════
+function computePostTieBias(games) {
+  const choices = ['rock','paper','scissors'];
+  const counts  = { rock:0, paper:0, scissors:0, total:0 };
+
+  const sorted = games.filter(g => g.timestamp && choices.includes(g.playerChoice))
+    .sort((a,b) => a.timestamp - b.timestamp);
+
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i].prevOutcome === 'tie') {
+      counts[sorted[i].playerChoice]++;
+      counts.total++;
+    }
+  }
+
+  if (counts.total < 4) return { probs: null, weight: 0 };
+
+  const probs = {};
+  let totalDev = 0;
+  choices.forEach(c => { probs[c] = counts[c] / counts.total; totalDev += Math.abs(probs[c] - 1/3); });
+
+  return { probs, weight: Math.min(totalDev * 1.8, 0.30), total: counts.total };
+}
+
+// ════════════════════════════════════════════════
+// NEW: OPENING BIAS
+// Players without a personal history tend toward rock (global bias ~35%)
+// Weight shrinks to 0 as personal game count grows
+// ════════════════════════════════════════════════
+function computeOpeningBias(personalCount, globalGames) {
+  const choices    = ['rock','paper','scissors'];
+  const validGames = globalGames.filter(g => choices.includes(g.playerChoice));
+  const total      = validGames.length;
+  if (total < 20) return { rockBias: 0, weight: 0, cutoff: 10 };
+
+  const rockRate = validGames.filter(g => g.playerChoice === 'rock').length / total;
+  const rockBias = Math.max(rockRate - 1/3, 0);
+
+  // Cutoff: how many personal games until opening bias fades out
+  // Default 10 — learned from data in a future iteration
+  const cutoff = 10;
+  if (personalCount >= cutoff) return { rockBias, weight: 0, cutoff };
+
+  const weight = Math.min(rockBias * 2.5 * (1 - personalCount / cutoff), 0.25);
+  return { rockBias, weight, cutoff, personalCount };
+}
+
+// ════════════════════════════════════════════════
+// NEW: STREAK AVOIDANCE
+// Players rarely repeat the same choice 3+ times in a row
+// Learn the personal repeat-rate and use it as a penalty weight
+// ════════════════════════════════════════════════
+function computeStreakAvoidance(games) {
+  const choices = ['rock','paper','scissors'];
+  const sorted  = games.filter(g => g.timestamp && choices.includes(g.playerChoice))
+    .sort((a,b) => a.timestamp - b.timestamp);
+
+  let opportunities = 0, repeats = 0;
+  for (let i = 2; i < sorted.length; i++) {
+    if (sorted[i-1].playerChoice === sorted[i-2].playerChoice) {
+      opportunities++;
+      if (sorted[i].playerChoice === sorted[i-1].playerChoice) repeats++;
+    }
+  }
+
+  // Default from research: ~12% repeat rate after 2-in-a-row (vs 33% base)
+  if (opportunities < 5) return { repeatRate: 0.12, avoidWeight: 0.25 };
+
+  const repeatRate  = repeats / opportunities;
+  const avoidWeight = Math.min(Math.max((1/3 - repeatRate) * 1.8, 0), 0.40);
+  return { repeatRate, avoidWeight, opportunities };
+}
+
+// ════════════════════════════════════════════════
+// NEW: MIRRORING
+// After losing, some players copy the choice that beat them
+// (subconscious "if only I had played that")
+// ════════════════════════════════════════════════
+function computeMirrorRate(games) {
+  const choices = ['rock','paper','scissors'];
+  const sorted  = games.filter(g => g.timestamp && choices.includes(g.playerChoice))
+    .sort((a,b) => a.timestamp - b.timestamp);
+
+  let total = 0, hits = 0;
+  for (let i = 1; i < sorted.length; i++) {
+    const g = sorted[i], prev = sorted[i-1];
+    if (g.prevOutcome !== 'loss') continue;
+    total++;
+    // What beat them last round = BEATS[prev.playerChoice]
+    if (g.playerChoice === BEATS[prev.playerChoice]) hits++;
+  }
+
+  if (total < 5) return { mirrorRate: 0, weight: 0 };
+
+  const mirrorRate = hits / total;
+  const weight     = Math.min(Math.max((mirrorRate - 1/3) * 2, 0), 0.30);
+  return { mirrorRate, weight, total };
+}
+
 window.applyRoundResult = function() {
   if (!currentProfile || !roundOutcome) return;
   lastRoundTimestamp = Date.now();
@@ -1403,6 +1605,11 @@ window.applyRoundResult = function() {
     oppChoice: roundOppChoice,
     timestamp: lastRoundTimestamp
   };
+
+  // Update session history for streak/transition tracking
+  if (roundOppChoice) {
+    sessionHistory.push({ oppChoice: roundOppChoice, outcome: roundOutcome, timestamp: lastRoundTimestamp });
+  }
 
   const rec = buildRecommendation();
   currentRecommendation = rec;
@@ -1438,7 +1645,8 @@ function renderSlots() {
       inner.innerHTML = `<div class="slot-emoji">❓</div>`;
     }
   });
-  el('ctx-apply-btn').disabled = !Object.values(ctxPositions).every(v => v !== null);
+  const applyBtn = el('ctx-apply-btn');
+  if (applyBtn) applyBtn.disabled = !Object.values(ctxPositions).every(v => v !== null);
 }
 
 window.slotClick = function(pos) {
@@ -1607,6 +1815,9 @@ window.loadProfile = async function() {
   if (!rawName) { showToast('יש להזין שם יריב'); return; }
   if (rawName.toLowerCase() === 'unknown') { showToast('"unknown" אינו שם תקין'); el('player-name').value = ''; return; }
   const name = rawName;
+  // Only reset session history when switching to a different opponent
+  const isNewOpponent = !currentProfile || currentProfile.name !== name;
+  if (isNewOpponent) sessionHistory = [];
   el('ac-drop').classList.remove('show');
   hidden('empty-state');
   show('status-bar');
@@ -1646,12 +1857,19 @@ window.loadProfile = async function() {
     }
 
     const globalGames = buildGlobalGames(allGames);
-    const influence   = computeInfluence(personalGames.length >= 3 ? personalGames : globalGames, globalGames);
-    const wsls        = computeWinStayLoseShiftWeights(personalGames.length >= 3 ? personalGames : globalGames);
-    const halfLife    = computeHalfLifeFromData(personalGames.length >= 3 ? personalGames : globalGames);
+    const gamesForSignals = personalGames.length >= 3 ? personalGames : globalGames;
+    const influence   = computeInfluence(gamesForSignals, globalGames);
+    const wsls        = computeWinStayLoseShiftWeights(gamesForSignals);
+    const halfLife    = computeHalfLifeFromData(gamesForSignals);
+    const transBias   = computeTransitionBias(gamesForSignals);
+    const postTie     = computePostTieBias(gamesForSignals);
+    const openingBias = computeOpeningBias(personalGames.length, globalGames);
+    const streakAvoid = computeStreakAvoidance(gamesForSignals);
+    const mirrorBias  = computeMirrorRate(gamesForSignals);
     const stats       = computeStats(relevantGames);
 
-    currentProfile = { name, games: relevantGames, personalGames, allGames, stats, sourceLabel, influence, wsls, halfLife };
+    currentProfile = { name, games: relevantGames, personalGames, allGames, stats, sourceLabel,
+      influence, wsls, halfLife, transBias, postTie, openingBias, streakAvoid, mirrorBias };
     roundOutcome   = null;
     roundOppChoice = null;
     lastRoundTimestamp = null;
@@ -1818,63 +2036,104 @@ function buildRecommendation() {
     });
   }
 
-  // 4. Win-stay / Lose-shift adjustment (with temporal decay)
+  // 4. Shared temporal decay (used by all time-sensitive signals)
+  const elapsed = lastRound ? Math.max(Date.now() - (lastRound.timestamp || Date.now()), 0) : 0;
+  const decay   = lastRound ? (elapsed > 0 ? computeDecay(elapsed, halfLife) : 1) : 0;
+
   const reasonLines = [];
   let wsEffect = 0, lsEffect = 0;
 
-  if (lastRound && wsls) {
-    const elapsed  = Date.now() - (lastRound.timestamp || Date.now());
-    const decay    = computeDecay(elapsed, halfLife);
+  // 5. Win-stay / Lose-shift
+  if (lastRound && wsls && decay > 0.05) {
     const { wsWeight, lsWeight } = wsls;
+    if (lastRound.outcome === 'win' && wsWeight > 0.01 && lastRound.oppChoice) {
+      const effectiveW = wsWeight * decay;
+      choices.forEach(c => {
+        if (c === lastRound.oppChoice) adjProb[c] = adjProb[c]*(1-effectiveW) + effectiveW;
+        else                           adjProb[c] = adjProb[c]*(1-effectiveW);
+      });
+      wsEffect = Math.round(effectiveW * 100);
+      reasonLines.push(`🏆 win-stay: יחזור ל${HEB[lastRound.oppChoice]} (${wsEffect}% × ${Math.round(decay*100)}% זיכרון)`);
+    } else if (lastRound.outcome === 'loss' && lsWeight > 0.01 && lastRound.oppChoice) {
+      const shifted    = BEATEN_BY[BEATEN_BY[lastRound.oppChoice]];
+      const effectiveL = lsWeight * decay;
+      choices.forEach(c => {
+        if (c === shifted) adjProb[c] = adjProb[c]*(1-effectiveL) + effectiveL;
+        else               adjProb[c] = adjProb[c]*(1-effectiveL);
+      });
+      lsEffect = Math.round(effectiveL * 100);
+      reasonLines.push(`💔 lose-shift: יעבור ל${HEB[shifted]} (${lsEffect}% × ${Math.round(decay*100)}% זיכרון)`);
+    }
+  }
 
-    if (lastRound.outcome === 'win' && wsWeight > 0.01 && decay > 0.05) {
-      // Win-stay: opponent likely repeats their choice
-      // We know what the opponent played? if oppChoice known use it, else infer from our win
-      // If user won with our rec.beat, opponent played mostLikely — stay on that
-      // We boost the probability of opponent repeating their last choice
-      // lastRound.oppChoice: what the opponent actually played
-      if (lastRound.oppChoice) {
-        const effectiveW = wsWeight * decay;
-        choices.forEach(c => {
-          if (c === lastRound.oppChoice) {
-            adjProb[c] = adjProb[c]*(1-effectiveW) + effectiveW;
-          } else {
-            adjProb[c] = adjProb[c]*(1-effectiveW);
-          }
-        });
-        wsEffect = Math.round(effectiveW * 100);
-        reasonLines.push(`🏆 win-stay: יחזור ל${HEB[lastRound.oppChoice]} (${wsEffect}% × ${Math.round(decay*100)}% זיכרון)`);
-      }
-    } else if (lastRound.outcome === 'loss' && lsWeight > 0.01 && decay > 0.05) {
-      // Lose-shift: after losing, opponent shifts to what beat the winner (us)
-      // If we played X and won, opponent played BEATEN_BY[X]. They lost → they shift.
-      // Lose-shift = move to what beats what beat them = BEATEN_BY[BEATEN_BY[their_last]]
-      if (lastRound.oppChoice) {
-        const shifted      = BEATEN_BY[BEATEN_BY[lastRound.oppChoice]]; // shift target
-        const effectiveL   = lsWeight * decay;
-        choices.forEach(c => {
-          if (c === shifted) {
-            adjProb[c] = adjProb[c]*(1-effectiveL) + effectiveL;
-          } else {
-            adjProb[c] = adjProb[c]*(1-effectiveL);
-          }
-        });
-        lsEffect = Math.round(effectiveL * 100);
-        reasonLines.push(`💔 lose-shift: יעבור ל${HEB[shifted]} (${lsEffect}% × ${Math.round(decay*100)}% זיכרון)`);
+  // 6. Transition Bias: what does this player pick after (prevChoice × outcome)?
+  const transBias = currentProfile.transBias;
+  if (transBias?.weight > 0.01 && lastRound?.oppChoice && decay > 0.05) {
+    // Opponent's previous outcome is the inverse of ours
+    const oppPrevOut = lastRound.outcome === 'win' ? 'loss' : lastRound.outcome === 'loss' ? 'win' : 'tie';
+    const trans      = transBias.probs?.[lastRound.oppChoice]?.[oppPrevOut];
+    if (trans) {
+      const effectiveW = transBias.weight * decay;
+      choices.forEach(c => { adjProb[c] = adjProb[c]*(1-effectiveW) + trans[c]*effectiveW; });
+      const topT = choices.reduce((a,b) => trans[a]>trans[b] ? a : b);
+      reasonLines.push(`🔀 מעבר: ${HEB[lastRound.oppChoice]}+${oppPrevOut==='loss'?'הפסד':oppPrevOut==='win'?'ניצחון':'תיקו'} → ${HEB[topT]} (${Math.round(trans[topT]*100)}% · ${Math.round(decay*100)}% זיכרון)`);
+    }
+  }
+
+  // 7. Post-Tie Bias: what does this player pick after a tie?
+  const postTie = currentProfile.postTie;
+  if (postTie?.probs && postTie.weight > 0.01 && lastRound?.outcome === 'tie' && decay > 0.05) {
+    const effectiveW = postTie.weight * decay;
+    choices.forEach(c => { adjProb[c] = adjProb[c]*(1-effectiveW) + postTie.probs[c]*effectiveW; });
+    const topTie = choices.reduce((a,b) => postTie.probs[a]>postTie.probs[b] ? a : b);
+    reasonLines.push(`🤝 אחרי תיקו: נוטה ל${HEB[topTie]} (${Math.round(postTie.probs[topTie]*100)}%)`);
+  }
+
+  // 8. Opening Bias: new opponents lean toward rock globally
+  const openingBias = currentProfile.openingBias;
+  if (openingBias?.weight > 0.01) {
+    const ow = openingBias.weight;
+    adjProb.rock = adjProb.rock*(1-ow) + (1/3 + openingBias.rockBias)*ow;
+    reasonLines.push(`🎯 פתיחה: שחקן חדש — נטייה לאבן (${currentProfile.personalGames.length}/${openingBias.cutoff} משחקים)`);
+  }
+
+  // 9. Streak Avoidance: same choice twice in a row → lower 3rd occurrence significantly
+  const streakAvoid = currentProfile.streakAvoid;
+  if (streakAvoid && sessionHistory.length >= 2) {
+    const sLast = sessionHistory[sessionHistory.length-1];
+    const sPrev = sessionHistory[sessionHistory.length-2];
+    if (sLast.oppChoice && sLast.oppChoice === sPrev.oppChoice) {
+      const streakDecay = computeDecay(Date.now() - sLast.timestamp, halfLife);
+      const effectiveW  = streakAvoid.avoidWeight * streakDecay;
+      if (effectiveW > 0.01) {
+        adjProb[sLast.oppChoice] *= Math.max(1 - effectiveW, 0);
+        reasonLines.push(`⚡ רצף: ${HEB[sLast.oppChoice]} פעמיים ← לא יחזור (${Math.round(effectiveW*100)}%)`);
       }
     }
   }
 
-  // 5. Normalize
+  // 10. Mirroring: after losing, opponent might copy the choice that beat them
+  const mirrorBias = currentProfile.mirrorBias;
+  if (mirrorBias?.weight > 0.01 && lastRound?.outcome === 'win' && lastRound.oppChoice && decay > 0.05) {
+    const mirrorTarget = BEATS[lastRound.oppChoice]; // what beat them last round
+    const effectiveW   = mirrorBias.weight * decay;
+    choices.forEach(c => {
+      if (c === mirrorTarget) adjProb[c] = adjProb[c]*(1-effectiveW) + effectiveW;
+      else                    adjProb[c] = adjProb[c]*(1-effectiveW);
+    });
+    reasonLines.push(`🪞 מראה: אחרי הפסד, יחקה ${HEB[mirrorTarget]} (${Math.round(effectiveW*100)}% × ${Math.round(decay*100)}% זיכרון)`);
+  }
+
+  // 11. Normalize
   const adjTotal = adjProb.rock + adjProb.paper + adjProb.scissors;
   choices.forEach(c => adjProb[c] /= adjTotal);
 
-  // 6. Find best prediction & what beats it
+  // 12. Find best prediction & what beats it
   const mostLikely = choices.reduce((a,b) => adjProb[a]>adjProb[b] ? a : b);
   const beat        = BEATS[mostLikely];
   const confidence  = Math.round(adjProb[mostLikely]*100);
 
-  // 7. Build reason text
+  // 13. Build reason text
   const lines = [];
   lines.push(`${currentProfile.name||'היריב'} בוחר ${HEB[mostLikely]} ${Math.round(baseProb[mostLikely]*100)}% בסיס`);
   if (influence?.posWeight > 0.01 && Object.values(ctxPositions).some(Boolean))
@@ -1944,6 +2203,15 @@ window.saveRoundAndNext = async function() {
   try {
     await push(ref(db, 'games'), gameRecord);
     showToast('✅ נשמר! טוען נתונים מעודכנים...');
+
+    // Update session history BEFORE reload (loadProfile preserves it for same opponent)
+    const sessionOutcome = result === 'p1_win' ? 'win' : result === 'p2_win' ? 'loss' : 'tie';
+    sessionHistory.push({ oppChoice: oppActualChoice, outcome: sessionOutcome, timestamp: gameRecord.timestamp });
+
+    // Also update lastRound so new signals fire right after reload
+    if (currentProfile) {
+      currentProfile.lastRound = { outcome: sessionOutcome, oppChoice: oppActualChoice, timestamp: gameRecord.timestamp };
+    }
 
     // Reset record UI
     myActualChoice = null; oppActualChoice = null;
