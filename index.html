@@ -1,305 +1,1705 @@
 <!DOCTYPE html>
-<html lang="he">
+<html lang="he" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <title>אבן נייר ומספריים</title>
-  <style>
-    body {
-      font-family: "Segoe UI", sans-serif;
-      background: linear-gradient(145deg, #f0f4f8, #d9e2ec);
-      text-align: center;
-      direction: rtl;
-      margin: 0;
-      padding: 20px;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>אבן נייר מספריים</title>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --card: #12121a;
+    --border: #2a2a3a;
+    --accent: #ff4d6d;
+    --accent2: #4dffb4;
+    --accent3: #ffd54d;
+    --text: #e8e8f0;
+    --muted: #666680;
+    --rock: #ff6b6b;
+    --paper: #4dabf7;
+    --scissors: #69db7c;
+  }
 
-    h1 {
-      margin-bottom: 10px;
-      font-size: 2em;
-      color: #333;
-    }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
 
-    .game-container {
-      background: white;
-      max-width: 600px;
-      margin: 0 auto;
-      border-radius: 15px;
-      box-shadow: 0 0 15px rgba(0,0,0,0.1);
-      padding: 20px;
-    }
+  body {
+    font-family: 'Rubik', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
 
-    .mode-selector {
-      margin-bottom: 15px;
-    }
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,77,109,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,77,109,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
 
-    .inputs {
-      margin: 15px 0;
-    }
+  #app {
+    position: relative;
+    z-index: 1;
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 20px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
 
-    input[type="text"] {
-      padding: 5px;
-      margin: 5px;
-      border-radius: 8px;
-      border: 1px solid #ccc;
-    }
+  /* Header */
+  .header {
+    text-align: center;
+    padding: 30px 0 20px;
+  }
 
-    button {
-      font-size: 1.5em;
-      margin: 10px;
-      padding: 10px 20px;
-      border: none;
-      border-radius: 50px;
-      background: #4a90e2;
-      color: white;
-      cursor: pointer;
-      transition: transform 0.2s ease, background 0.3s;
-    }
+  .header h1 {
+    font-size: clamp(2rem, 6vw, 3.5rem);
+    font-weight: 900;
+    line-height: 1;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent3) 50%, var(--accent2) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -1px;
+  }
 
-    button:hover {
-      background: #357ab8;
-      transform: scale(1.05);
-    }
+  .header .emoji-row {
+    font-size: 2rem;
+    margin-top: 8px;
+    animation: float 3s ease-in-out infinite;
+  }
 
-    .choices {
-      display: flex;
-      justify-content: center;
-      flex-wrap: wrap;
-    }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
 
-    .profile {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      margin: 10px;
-    }
+  /* Mode Select */
+  .mode-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin: 20px 0;
+  }
 
-    .profile .emoji {
-      font-size: 2.5em;
-      background: #e6ecf0;
-      border-radius: 50%;
-      width: 60px;
-      height: 60px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
+  .mode-btn {
+    background: var(--card);
+    border: 2px solid var(--border);
+    border-radius: 16px;
+    padding: 20px 12px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+    color: var(--text);
+    font-family: 'Rubik', sans-serif;
+  }
 
-    .profile span {
-      font-size: 1.2em;
-      color: #333;
-    }
+  .mode-btn:hover, .mode-btn.active {
+    border-color: var(--accent);
+    background: rgba(255,77,109,0.08);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(255,77,109,0.15);
+  }
 
-    #result {
-      font-size: 1.2em;
-      margin-top: 20px;
-      padding: 10px;
-      background-color: #f9fafb;
-      border-radius: 10px;
-      min-height: 50px;
-    }
+  .mode-btn .icon { font-size: 2rem; display: block; margin-bottom: 8px; }
+  .mode-btn .label { font-size: 0.85rem; font-weight: 600; }
 
-    #score {
-      margin-top: 10px;
-      font-size: 1.1em;
-      font-weight: bold;
-      background: #eef2f7;
-      border-radius: 8px;
-      padding: 10px;
-      display: inline-block;
-    }
+  /* Card */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 24px;
+    margin: 12px 0;
+  }
 
-    @keyframes flash {
-      0% { background-color: yellow; }
-      100% { background-color: inherit; }
-    }
+  /* Score bar */
+  .score-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 20px;
+    margin-bottom: 16px;
+  }
 
-    .flash {
-      animation: flash 0.3s ease;
-    }
+  .score-item {
+    text-align: center;
+    min-width: 60px;
+  }
 
-    .winner {
-      animation: bounce 0.6s ease;
-      color: green;
-    }
+  .score-item .val {
+    font-size: 2rem;
+    font-weight: 900;
+    font-family: 'Space Mono', monospace;
+    line-height: 1;
+  }
 
-    @keyframes bounce {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.2); }
-      100% { transform: scale(1); }
-    }
-  </style>
+  .score-item .lbl {
+    font-size: 0.72rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 3px;
+  }
+
+  .score-item.wins .val { color: var(--accent2); }
+  .score-item.losses .val { color: var(--accent); }
+  .score-item.draws .val { color: var(--accent3); }
+
+  /* Arena */
+  .arena {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 24px 0;
+  }
+
+  .player-side {
+    flex: 1;
+    text-align: center;
+  }
+
+  .choice-display {
+    width: 110px;
+    height: 110px;
+    border-radius: 50%;
+    border: 3px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3.5rem;
+    margin: 0 auto 10px;
+    transition: all 0.3s;
+    background: rgba(255,255,255,0.03);
+    position: relative;
+  }
+
+  .choice-display.reveal {
+    animation: pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes pop {
+    0% { transform: scale(0.5); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  .choice-display.rock { border-color: var(--rock); box-shadow: 0 0 20px rgba(255,107,107,0.2); }
+  .choice-display.paper { border-color: var(--paper); box-shadow: 0 0 20px rgba(77,171,247,0.2); }
+  .choice-display.scissors { border-color: var(--scissors); box-shadow: 0 0 20px rgba(105,219,124,0.2); }
+
+  .player-name {
+    font-size: 0.8rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 600;
+  }
+
+  .vs-badge {
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    color: var(--muted);
+    font-size: 0.9rem;
+    flex-shrink: 0;
+    width: 40px;
+    text-align: center;
+  }
+
+  /* Result banner */
+  .result-banner {
+    text-align: center;
+    padding: 12px;
+    border-radius: 12px;
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin: 4px 0 16px;
+    transition: all 0.3s;
+    min-height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .result-banner.win { background: rgba(77,255,180,0.12); color: var(--accent2); border: 1px solid rgba(77,255,180,0.3); }
+  .result-banner.lose { background: rgba(255,77,109,0.12); color: var(--accent); border: 1px solid rgba(255,77,109,0.3); }
+  .result-banner.draw { background: rgba(255,213,77,0.1); color: var(--accent3); border: 1px solid rgba(255,213,77,0.3); }
+  .result-banner.empty { background: transparent; color: var(--muted); font-size: 0.9rem; font-weight: 400; border: 1px dashed var(--border); }
+
+  /* Choice buttons */
+  .choices {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 8px;
+  }
+
+  .choice-btn {
+    background: var(--card);
+    border: 2px solid var(--border);
+    border-radius: 16px;
+    padding: 16px 8px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+    font-family: 'Rubik', sans-serif;
+    color: var(--text);
+  }
+
+  .choice-btn:hover:not(:disabled) {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+  }
+
+  .choice-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .choice-btn .e { font-size: 2.2rem; display: block; }
+  .choice-btn .n { font-size: 0.82rem; font-weight: 600; margin-top: 4px; }
+
+  .choice-btn.rock:hover:not(:disabled) { border-color: var(--rock); background: rgba(255,107,107,0.1); }
+  .choice-btn.paper:hover:not(:disabled) { border-color: var(--paper); background: rgba(77,171,247,0.1); }
+  .choice-btn.scissors:hover:not(:disabled) { border-color: var(--scissors); background: rgba(105,219,124,0.1); }
+
+  /* Buttons */
+  .btn {
+    padding: 12px 24px;
+    border-radius: 12px;
+    border: none;
+    font-family: 'Rubik', sans-serif;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.5px;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), #c9184a);
+    color: white;
+    box-shadow: 0 4px 14px rgba(255,77,109,0.3);
+  }
+
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,77,109,0.4); }
+
+  .btn-secondary {
+    background: var(--border);
+    color: var(--text);
+  }
+
+  .btn-secondary:hover { background: #3a3a50; transform: translateY(-1px); }
+
+  .btn-full { width: 100%; }
+
+  .btn-sm { padding: 8px 16px; font-size: 0.8rem; }
+
+  /* Text input */
+  .input-field {
+    background: var(--bg);
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: var(--text);
+    font-family: 'Rubik', sans-serif;
+    font-size: 0.95rem;
+    width: 100%;
+    transition: border-color 0.2s;
+  }
+
+  .input-field:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  .input-field::placeholder { color: var(--muted); }
+
+  /* Local pass screen */
+  .pass-screen {
+    text-align: center;
+    padding: 30px 20px;
+  }
+
+  .pass-screen .big-icon { font-size: 4rem; margin-bottom: 16px; }
+  .pass-screen h3 { font-size: 1.3rem; margin-bottom: 8px; }
+  .pass-screen p { color: var(--muted); font-size: 0.9rem; margin-bottom: 24px; }
+
+  /* Online room */
+  .room-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+    flex-shrink: 0;
+  }
+
+  .dot.green { background: var(--accent2); box-shadow: 0 0 6px var(--accent2); animation: pulse 1.5s infinite; }
+  .dot.yellow { background: var(--accent3); animation: pulse 1.5s infinite; }
+  .dot.red { background: var(--accent); }
+
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+
+  .room-code {
+    font-family: 'Space Mono', monospace;
+    font-size: 1.8rem;
+    font-weight: 700;
+    letter-spacing: 4px;
+    color: var(--accent3);
+    background: rgba(255,213,77,0.07);
+    border: 1px dashed rgba(255,213,77,0.3);
+    border-radius: 10px;
+    padding: 10px 20px;
+    text-align: center;
+    margin: 10px 0;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .room-code:hover { background: rgba(255,213,77,0.12); }
+
+  .copy-hint { font-size: 0.75rem; color: var(--muted); text-align: center; margin-top: 4px; }
+
+  .waiting-animation {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 16px;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+
+  .waiting-animation span {
+    animation: bounce 1s infinite;
+    display: inline-block;
+  }
+
+  .waiting-animation span:nth-child(2) { animation-delay: 0.15s; }
+  .waiting-animation span:nth-child(3) { animation-delay: 0.3s; }
+
+  @keyframes bounce { 0%,100% { transform:translateY(0); } 40% { transform:translateY(-5px); } }
+
+  /* Divider */
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 16px 0;
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+
+  .divider::before, .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* Hidden */
+  .hidden { display: none !important; }
+
+  /* Flex utils */
+  .flex { display: flex; }
+  .gap-8 { gap: 8px; }
+  .mt-8 { margin-top: 8px; }
+  .mt-12 { margin-top: 12px; }
+  .mt-16 { margin-top: 16px; }
+  .text-center { text-align: center; }
+  .text-muted { color: var(--muted); font-size: 0.85rem; }
+
+  /* History */
+  .history {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: center;
+    min-height: 28px;
+    padding: 4px 0;
+  }
+
+  .history-item {
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-weight: 600;
+    border: 1px solid;
+  }
+
+  .history-item.W { background: rgba(77,255,180,0.1); color: var(--accent2); border-color: rgba(77,255,180,0.3); }
+  .history-item.L { background: rgba(255,77,109,0.1); color: var(--accent); border-color: rgba(255,77,109,0.3); }
+  .history-item.D { background: rgba(255,213,77,0.08); color: var(--accent3); border-color: rgba(255,213,77,0.25); }
+
+  /* Shake animation for choices */
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    20% { transform: translateX(-4px) rotate(-5deg); }
+    40% { transform: translateX(4px) rotate(5deg); }
+    60% { transform: translateX(-3px); }
+    80% { transform: translateX(3px); }
+  }
+
+  .shaking { animation: shake 0.5s ease; }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-80px);
+    background: var(--card);
+    border: 1px solid var(--accent2);
+    color: var(--accent2);
+    padding: 10px 20px;
+    border-radius: 50px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    z-index: 100;
+    transition: transform 0.3s;
+  }
+
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+
+  /* Autocomplete dropdown */
+  .autocomplete-wrap { position: relative; }
+
+  .autocomplete-list {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0; left: 0;
+    background: #1a1a26;
+    border: 1px solid var(--accent);
+    border-radius: 10px;
+    overflow: hidden;
+    z-index: 50;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    max-height: 180px;
+    overflow-y: auto;
+  }
+
+  .autocomplete-item {
+    padding: 10px 14px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.15s;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .autocomplete-item:last-child { border-bottom: none; }
+  .autocomplete-item:hover, .autocomplete-item.highlighted { background: rgba(255,77,109,0.12); }
+  .autocomplete-item .ac-icon { font-size: 1rem; opacity: 0.7; }
+  .autocomplete-item .ac-name { font-weight: 600; }
+
+  .input-error { border-color: var(--accent) !important; }
+  .field-error { color: var(--accent); font-size: 0.78rem; margin-top: 4px; display: none; }
+  .field-error.show { display: block; }
+
+  .btn-random {
+    background: linear-gradient(135deg, #7c3aed, #4f46e5);
+    color: white;
+    font-weight: 700;
+    border: none;
+    box-shadow: 0 4px 14px rgba(124,58,237,0.35);
+    transition: all 0.2s;
+    cursor: pointer;
+    font-family: 'Rubik', sans-serif;
+    border-radius: 12px;
+    padding: 12px 24px;
+    font-size: 0.9rem;
+    letter-spacing: 0.5px;
+  }
+  .btn-random:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(124,58,237,0.5); }
+
+  /* Responsive */
+  @media (max-width: 480px) {
+    .mode-grid { grid-template-columns: 1fr 1fr 1fr; }
+    .mode-btn { padding: 14px 6px; }
+    .mode-btn .icon { font-size: 1.5rem; }
+    .mode-btn .label { font-size: 0.72rem; }
+    .choice-display { width: 90px; height: 90px; font-size: 2.8rem; }
+  }
+</style>
 </head>
 <body>
-  <div class="game-container">
-    <h1>אבן נייר ומספריים</h1>
-
-    <div class="mode-selector">
-      <label><input type="radio" name="mode" value="computer" checked> נגד מחשב</label>
-      <label><input type="radio" name="mode" value="player"> נגד שחקן אמיתי</label>
-    </div>
-
-    <div class="inputs">
-      <input id="player1NameInput" type="text" placeholder="שם שחקן 1">
-      <input id="player2NameInput" type="text" placeholder="שם שחקן 2 / מחשב"><br>
-      <input id="player1Emoji" type="text" placeholder="🧑" maxlength="2">
-      <input id="player2Emoji" type="text" placeholder="💻" maxlength="2">
-      <button onclick="updateNames()">עדכן שמות</button>
-    </div>
-
-    <div class="profile" id="profile1">
-      <div class="emoji" id="emoji1">🧑</div>
-      <span id="name1">שחקן 1</span>
-    </div>
-    <div id="player1" class="choices">
-      <button onclick="makeChoice(1, 'אבן')">🪨</button>
-      <button onclick="makeChoice(1, 'נייר')">📄</button>
-      <button onclick="makeChoice(1, 'מספריים')">✂️</button>
-    </div>
-
-    <div class="profile" id="profile2" style="display:none;">
-      <div class="emoji" id="emoji2">💻</div>
-      <span id="name2">שחקן 2</span>
-    </div>
-    <div id="player2" class="choices" style="display:none;">
-      <button onclick="makeChoice(2, 'אבן')">🪨</button>
-      <button onclick="makeChoice(2, 'נייר')">📄</button>
-      <button onclick="makeChoice(2, 'מספריים')">✂️</button>
-    </div>
-
-    <div id="result"></div>
-    <div id="score"></div>
+<div id="app">
+  <div class="header">
+    <h1>אבן נייר מספריים</h1>
+    <div class="emoji-row">✊ 📄 ✂️</div>
   </div>
 
-  <script>
-    let mode = "computer";
-    let player1Choice = null;
-    let player2Choice = null;
-    let score = { player1: 0, player2: 0, computer: 0 };
+  <!-- Mode selector -->
+  <div class="mode-grid">
+    <button class="mode-btn active" onclick="setMode('computer')" id="mode-computer">
+      <span class="icon">🤖</span>
+      <span class="label">נגד מחשב</span>
+    </button>
+    <button class="mode-btn" onclick="setMode('local')" id="mode-local">
+      <span class="icon">👥</span>
+      <span class="label">שחקן מקומי</span>
+    </button>
+    <button class="mode-btn" onclick="setMode('online')" id="mode-online">
+      <span class="icon">🌐</span>
+      <span class="label">אונליין</span>
+    </button>
+  </div>
 
-    let player1Name = "אתה";
-    let player2Name = "מחשב";
-    let player1Emoji = "🧑";
-    let player2Emoji = "💻";
+  <!-- ===== COMPUTER MODE ===== -->
+  <div id="screen-computer">
 
-    document.querySelectorAll('input[name="mode"]').forEach(radio => {
-      radio.addEventListener('change', function () {
-        mode = this.value;
-        document.getElementById('player2NameInput').placeholder = (mode === "computer") ? "מחשב" : "שם שחקן 2";
-        document.getElementById('player2Emoji').placeholder = (mode === "computer") ? "💻" : "🧑";
-        updateNames();
-        resetGame();
-      });
+    <!-- Name setup -->
+    <div id="c-name-setup" class="card">
+      <div style="font-weight:700;font-size:1.05rem;margin-bottom:4px;">מה שמך?</div>
+      <div class="text-muted" style="margin-bottom:12px;">השם יישמר לרשימת השחקנים</div>
+      <div class="autocomplete-wrap">
+        <input type="text" class="input-field" id="c-name-input" placeholder="הכנס שם שחקן" maxlength="16" autocomplete="off" oninput="acInput(this,'c-ac-list')" onkeydown="acKeydown(event,'c-ac-list','c-name-input')">
+        <div class="autocomplete-list hidden" id="c-ac-list"></div>
+      </div>
+      <div class="field-error" id="c-name-err">נא להכניס שם</div>
+      <button class="btn btn-primary mt-12" style="width:100%" onclick="startComputerGame()">▶ התחל משחק</button>
+    </div>
+
+    <!-- Game -->
+    <div id="c-game" class="hidden">
+    <div class="score-bar">
+      <div class="score-item wins"><div class="val" id="c-wins">0</div><div class="lbl">ניצחונות</div></div>
+      <div class="score-item draws"><div class="val" id="c-draws">0</div><div class="lbl">תיקו</div></div>
+      <div class="score-item losses"><div class="val" id="c-losses">0</div><div class="lbl">הפסדים</div></div>
+    </div>
+
+    <div class="card">
+      <div class="arena">
+        <div class="player-side">
+          <div class="choice-display" id="c-player-display">❓</div>
+          <div class="player-name" id="c-my-name">אתה</div>
+        </div>
+        <div class="vs-badge">VS</div>
+        <div class="player-side">
+          <div class="choice-display" id="c-cpu-display">❓</div>
+          <div class="player-name">מחשב</div>
+        </div>
+      </div>
+
+      <div class="result-banner empty" id="c-result">בחר את המהלך שלך</div>
+
+      <div class="choices">
+        <button class="choice-btn rock" onclick="playComputer('rock')">
+          <span class="e">✊</span><span class="n">אבן</span>
+        </button>
+        <button class="choice-btn paper" onclick="playComputer('paper')">
+          <span class="e">📄</span><span class="n">נייר</span>
+        </button>
+        <button class="choice-btn scissors" onclick="playComputer('scissors')">
+          <span class="e">✂️</span><span class="n">מספריים</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="card" style="padding:14px 20px;">
+      <div style="font-size:0.75rem;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">היסטוריה</div>
+      <div class="history" id="c-history"></div>
+    </div>
+    <button class="btn btn-secondary btn-sm mt-8" onclick="resetComputerMode()">← החלף שחקן</button>
+    </div><!-- end c-game -->
+  </div>
+
+  <!-- ===== LOCAL MODE ===== -->
+  <div id="screen-local" class="hidden">
+    <!-- Pass screen for P2 -->
+    <div id="local-pass-p1" class="hidden">
+      <div class="pass-screen">
+        <div class="big-icon">🫣</div>
+        <h3>עכשיו תור שחקן 2</h3>
+        <p>שחקן 1 בחר. תן לשחקן 2 לשבת מול המסך ולוחץ להמשך.</p>
+        <button class="btn btn-primary btn-full" onclick="showLocalP2()">אני מוכן, הצג בחירת שחקן 2 ←</button>
+      </div>
+    </div>
+
+    <div id="local-pass-p2" class="hidden">
+      <div class="pass-screen">
+        <div class="big-icon">🫣</div>
+        <h3>עכשיו תור שחקן 1</h3>
+        <p>שחקן 2 בחר. תן לשחקן 1 לשבת מול המסך ולחץ להמשך.</p>
+        <button class="btn btn-primary btn-full" onclick="showLocalP1()">אני מוכן, הצג בחירת שחקן 1 ←</button>
+      </div>
+    </div>
+
+    <!-- Main local game -->
+    <div id="local-game">
+      <div class="score-bar">
+        <div class="score-item wins"><div class="val" id="l-p1wins">0</div><div class="lbl" id="l-p1name-score">שחקן 1</div></div>
+        <div class="score-item draws"><div class="val" id="l-draws">0</div><div class="lbl">תיקו</div></div>
+        <div class="score-item losses"><div class="val" id="l-p2wins">0</div><div class="lbl" id="l-p2name-score">שחקן 2</div></div>
+      </div>
+
+      <div id="local-name-setup" class="card">
+        <div style="font-weight:700;font-size:1.05rem;margin-bottom:4px;">שמות שחקנים</div>
+        <div class="text-muted" style="margin-bottom:14px;">שם חובה לכל שחקן</div>
+        <div style="margin-bottom:10px;">
+          <div style="font-size:0.8rem;color:var(--muted);margin-bottom:5px;font-weight:600;">שחקן 1</div>
+          <div class="autocomplete-wrap">
+            <input type="text" class="input-field" id="l-name1" placeholder="שם שחקן 1" maxlength="16" autocomplete="off" oninput="acInput(this,'l-ac1')" onkeydown="acKeydown(event,'l-ac1','l-name1')">
+            <div class="autocomplete-list hidden" id="l-ac1"></div>
+          </div>
+          <div class="field-error" id="l-name1-err">נא להכניס שם</div>
+        </div>
+        <div style="margin-bottom:14px;">
+          <div style="font-size:0.8rem;color:var(--muted);margin-bottom:5px;font-weight:600;">שחקן 2</div>
+          <div class="autocomplete-wrap">
+            <input type="text" class="input-field" id="l-name2" placeholder="שם שחקן 2" maxlength="16" autocomplete="off" oninput="acInput(this,'l-ac2')" onkeydown="acKeydown(event,'l-ac2','l-name2')">
+            <div class="autocomplete-list hidden" id="l-ac2"></div>
+          </div>
+          <div class="field-error" id="l-name2-err">נא להכניס שם</div>
+        </div>
+        <button class="btn btn-primary" onclick="startLocalGame()" style="width:100%;">▶ התחל משחק</button>
+      </div>
+
+      <div id="local-playing" class="hidden">
+        <div class="card">
+          <div class="arena" id="local-arena-phase">
+            <div class="player-side">
+              <div class="choice-display" id="l-p1-display">❓</div>
+              <div class="player-name" id="l-p1name">שחקן 1</div>
+            </div>
+            <div class="vs-badge">VS</div>
+            <div class="player-side">
+              <div class="choice-display" id="l-p2-display">❓</div>
+              <div class="player-name" id="l-p2name">שחקן 2</div>
+            </div>
+          </div>
+
+          <div class="result-banner empty" id="l-result">שחקן 1 בוחר...</div>
+
+          <div class="choices" id="local-choices">
+            <button class="choice-btn rock" onclick="localChoice('rock')">
+              <span class="e">✊</span><span class="n">אבן</span>
+            </button>
+            <button class="choice-btn paper" onclick="localChoice('paper')">
+              <span class="e">📄</span><span class="n">נייר</span>
+            </button>
+            <button class="choice-btn scissors" onclick="localChoice('scissors')">
+              <span class="e">✂️</span><span class="n">מספריים</span>
+            </button>
+          </div>
+
+          <div id="local-next-btn" class="hidden mt-16">
+            <button class="btn btn-primary btn-full" onclick="localNextRound()">סיבוב הבא ↩</button>
+          </div>
+        </div>
+
+        <div class="card" style="padding:14px 20px;">
+          <div style="font-size:0.75rem;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">היסטוריה</div>
+          <div class="history" id="l-history"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ONLINE MODE ===== -->
+  <div id="screen-online" class="hidden">
+
+    <!-- Lobby -->
+    <div id="online-lobby">
+      <div class="card">
+        <div style="font-weight:700;font-size:1.1rem;margin-bottom:4px;">שם משתמש</div>
+        <div class="text-muted" style="margin-bottom:12px;">חובה – ישמר לרשימת השחקנים</div>
+        <div class="autocomplete-wrap">
+          <input type="text" class="input-field" id="online-username" placeholder="שם שלך" maxlength="16" autocomplete="off" oninput="acInput(this,'o-ac')" onkeydown="acKeydown(event,'o-ac','online-username')">
+          <div class="autocomplete-list hidden" id="o-ac"></div>
+        </div>
+        <div class="field-error" id="o-name-err">נא להכניס שם</div>
+      </div>
+
+      <div class="card">
+        <button class="btn btn-random btn-full" onclick="findRandomOpponent()" style="font-size:1rem;padding:16px;width:100%;">
+          🎲 מצא יריב אקראי
+        </button>
+
+        <div class="divider">או שחק עם חבר</div>
+
+        <button class="btn btn-primary btn-full" onclick="createRoom()" style="font-size:0.95rem;padding:14px;">
+          ➕ צור חדר חדש
+        </button>
+
+        <div style="margin-top:10px;" class="flex gap-8">
+          <input type="text" class="input-field" id="join-code" placeholder="קוד חדר (4 ספרות)" maxlength="4" style="text-align:center;font-family:'Space Mono';font-size:1.2rem;letter-spacing:4px;" oninput="this.value=this.value.replace(/\D/g,'')">
+          <button class="btn btn-secondary" onclick="joinRoom()" style="white-space:nowrap;flex-shrink:0;">הצטרף</button>
+        </div>
+
+        <div id="lobby-error" class="hidden" style="color:var(--accent);font-size:0.85rem;margin-top:8px;text-align:center;"></div>
+      </div>
+    </div>
+
+    <!-- Waiting for opponent -->
+    <div id="online-waiting" class="hidden card" style="text-align:center;padding:32px 24px;">
+      <div style="font-size:2.5rem;margin-bottom:12px;">⏳</div>
+      <div style="font-weight:700;font-size:1.1rem;margin-bottom:6px;">ממתין לשחקן שני...</div>
+      <div style="color:var(--muted);font-size:0.85rem;margin-bottom:16px;">שתף את קוד החדר עם חבר</div>
+      <div class="room-code" id="display-room-code" onclick="copyCode()">----</div>
+      <div class="copy-hint">לחץ להעתקה</div>
+      <div class="waiting-animation">
+        <span>●</span><span>●</span><span>●</span>
+      </div>
+      <button class="btn btn-secondary btn-sm mt-8" onclick="leaveRoom()">ביטול</button>
+    </div>
+
+    <!-- Matchmaking waiting -->
+    <div id="online-matchmaking" class="hidden card" style="text-align:center;padding:32px 24px;">
+      <div style="font-size:2.5rem;margin-bottom:12px;">🎲</div>
+      <div style="font-weight:700;font-size:1.1rem;margin-bottom:6px;">מחפש יריב אקראי...</div>
+      <div style="color:var(--muted);font-size:0.85rem;margin-bottom:20px;">ממתין לשחקן פנוי בתור</div>
+      <div class="waiting-animation">
+        <span>●</span><span>●</span><span>●</span>
+      </div>
+      <div style="margin-top:16px;font-size:0.8rem;color:var(--muted);" id="mm-queue-size"></div>
+      <button class="btn btn-secondary btn-sm mt-8" onclick="cancelMatchmaking()">ביטול</button>
+    </div>
+
+    <!-- Online Game -->
+    <div id="online-game" class="hidden">
+      <div class="score-bar">
+        <div class="score-item wins"><div class="val" id="o-mywins">0</div><div class="lbl">הניצחונות שלי</div></div>
+        <div class="score-item draws"><div class="val" id="o-draws">0</div><div class="lbl">תיקו</div></div>
+        <div class="score-item losses"><div class="val" id="o-losses">0</div><div class="lbl">הפסדים</div></div>
+      </div>
+
+      <div class="card">
+        <div class="room-status">
+          <div class="dot green" id="o-status-dot"></div>
+          <span id="o-status-text">מחובר</span>
+          <span style="margin-right:auto;font-family:'Space Mono';color:var(--accent3);" id="o-room-badge"></span>
+        </div>
+
+        <div class="arena">
+          <div class="player-side">
+            <div class="choice-display" id="o-my-display">❓</div>
+            <div class="player-name" id="o-my-name">אתה</div>
+          </div>
+          <div class="vs-badge">VS</div>
+          <div class="player-side">
+            <div class="choice-display" id="o-opp-display">❓</div>
+            <div class="player-name" id="o-opp-name">יריב</div>
+          </div>
+        </div>
+
+        <div class="result-banner empty" id="o-result">בחר את המהלך שלך</div>
+
+        <div class="choices" id="online-choices">
+          <button class="choice-btn rock" onclick="onlineChoice('rock')">
+            <span class="e">✊</span><span class="n">אבן</span>
+          </button>
+          <button class="choice-btn paper" onclick="onlineChoice('paper')">
+            <span class="e">📄</span><span class="n">נייר</span>
+          </button>
+          <button class="choice-btn scissors" onclick="onlineChoice('scissors')">
+            <span class="e">✂️</span><span class="n">מספריים</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="card" style="padding:14px 20px;">
+        <div style="font-size:0.75rem;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">היסטוריה</div>
+        <div class="history" id="o-history"></div>
+      </div>
+
+      <button class="btn btn-secondary btn-sm mt-8" onclick="leaveRoom()">עזוב חדר</button>
+    </div>
+
+  </div>
+
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script type="module">
+// ==================== FIREBASE ====================
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
+import { getAnalytics, logEvent } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-analytics.js";
+import { getDatabase, ref, set, get, onValue, update, remove, off } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyA-IW5ESE-eBuyMBfreGmyPdQV7YmkfmGs",
+  authDomain: "rock-paper-scissors-stats.firebaseapp.com",
+  databaseURL: "https://rock-paper-scissors-stats-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "rock-paper-scissors-stats",
+  storageBucket: "rock-paper-scissors-stats.firebasestorage.app",
+  messagingSenderId: "358139389618",
+  appId: "1:358139389618:web:c27497f5d7a5b23beb4bab",
+  measurementId: "G-PHDLVC4S49"
+};
+
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+const db = getDatabase(app);
+
+// ==================== GLOBALS ====================
+const CHOICES = { rock: '✊', paper: '📄', scissors: '✂️' };
+const NAMES = { rock: 'אבן', paper: 'נייר', scissors: 'מספריים' };
+
+let currentMode = 'computer';
+let allPlayers = []; // cached from Firebase
+
+// Computer state
+let cScore = { wins: 0, losses: 0, draws: 0 };
+let cPlayerName = null;
+
+// Local state
+let lState = { phase: 'p1', p1Choice: null, p2Choice: null };
+let lScore = { p1: 0, p2: 0, draws: 0 };
+let lHistory = [];
+let lNames = { p1: 'שחקן 1', p2: 'שחקן 2' };
+
+// Online state
+let oState = {
+  roomCode: null,
+  myId: null, // 'p1' or 'p2'
+  myName: null,
+  oppName: null,
+  score: { wins: 0, losses: 0, draws: 0 },
+  history: [],
+  myChoice: null,
+  waiting: false
+};
+let roomRef = null;
+let roomListener = null;
+
+// ==================== UTILS ====================
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function setDisplay(el, choice, animate = true) {
+  el.textContent = choice ? CHOICES[choice] : '❓';
+  el.className = 'choice-display' + (choice ? ' ' + choice : '');
+  if (animate && choice) {
+    el.classList.add('reveal');
+    setTimeout(() => el.classList.remove('reveal'), 500);
+  }
+}
+
+function getWinner(a, b) {
+  if (a === b) return 'draw';
+  if ((a === 'rock' && b === 'scissors') ||
+      (a === 'scissors' && b === 'paper') ||
+      (a === 'paper' && b === 'rock')) return 'a';
+  return 'b';
+}
+
+function randomChoice() {
+  const opts = ['rock', 'paper', 'scissors'];
+  return opts[Math.floor(Math.random() * 3)];
+}
+
+// ==================== PLAYERS DB ====================
+async function savePlayer(name) {
+  if (!name || name.length < 1) return;
+  const key = name.trim().replace(/[^a-zA-Z0-9א-ת]/g, '_').slice(0, 40);
+  try {
+    await set(ref(db, 'players/' + key), { name: name.trim(), lastSeen: Date.now() });
+  } catch(e) { console.warn('savePlayer error', e); }
+}
+
+// Live listener – keeps allPlayers always in sync with Firebase
+function subscribeToPlayers() {
+  onValue(ref(db, 'players'), (snap) => {
+    if (snap.exists()) {
+      allPlayers = Object.values(snap.val())
+        .map(p => p.name)
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b, 'he'));
+    } else {
+      allPlayers = [];
+    }
+  }, (err) => { console.warn('players listener error', err); });
+}
+
+subscribeToPlayers();
+
+// ==================== ROOM CLEANUP ====================
+async function cleanupStaleRooms() {
+  try {
+    const snap = await get(ref(db, 'rooms'));
+    if (!snap.exists()) return;
+    const now = Date.now();
+    const STALE_MS = 15 * 60 * 1000; // 15 minutes
+    const rooms = snap.val();
+    const deletions = [];
+    for (const [code, room] of Object.entries(rooms)) {
+      const lastActivity = room.lastActivity || room.createdAt || 0;
+      if (now - lastActivity > STALE_MS) {
+        deletions.push(remove(ref(db, 'rooms/' + code)));
+      }
+    }
+    if (deletions.length > 0) {
+      await Promise.all(deletions);
+      console.log(`[cleanup] removed ${deletions.length} stale room(s)`);
+    }
+  } catch(e) {
+    console.warn('[cleanup] error:', e);
+  }
+}
+
+// Run cleanup on every page load
+cleanupStaleRooms();
+
+
+
+async function saveGame(gameData) {
+  // gameData: { mode, p1, p2, winner, result, p1Choice, p2Choice, roomCode? }
+  try {
+    const { push: fbPush } = await import("https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js");
+    const gRef = fbPush(ref(db, 'games'));
+    await set(gRef, {
+      ...gameData,
+      timestamp: Date.now(),
+      date: new Date().toISOString()
+    });
+  } catch(e) { console.warn('saveGame error', e); }
+}
+
+// ==================== AUTOCOMPLETE ====================
+// Each input has its own highlight index
+const acState = {};
+
+window.acInput = function(inputEl, listId) {
+  const raw = inputEl.value;
+  const val = raw.trim().toLowerCase();
+  const list = document.getElementById(listId);
+  if (!acState[listId]) acState[listId] = { highlight: -1 };
+  acState[listId].highlight = -1;
+
+  if (!val) { list.classList.add('hidden'); return; }
+
+  // While players are still loading, show a loading indicator
+  if (allPlayers.length === 0) {
+    list.innerHTML = '<div class="autocomplete-item" style="color:var(--muted);cursor:default;"><span class="ac-icon">⏳</span><span class="ac-name">טוען שחקנים...</span></div>';
+    list.classList.remove('hidden');
+    return;
+  }
+
+  // Score matches: starts-with scores higher than contains
+  const matches = allPlayers
+    .map(p => {
+      const pl = p.toLowerCase();
+      if (pl.startsWith(val)) return { name: p, score: 2 };
+      if (pl.includes(val)) return { name: p, score: 1 };
+      return null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name, 'he'))
+    .slice(0, 7);
+
+  if (matches.length === 0) { list.classList.add('hidden'); return; }
+
+  // Highlight the matched part in bold
+  list.innerHTML = matches.map(({ name }, i) => {
+    const idx = name.toLowerCase().indexOf(val);
+    let display = name;
+    if (idx !== -1) {
+      display = name.slice(0, idx)
+        + '<strong style="color:var(--accent2)">' + name.slice(idx, idx + val.length) + '</strong>'
+        + name.slice(idx + val.length);
+    }
+    return `<div class="autocomplete-item" data-name="${name}" data-idx="${i}"
+      onmousedown="acSelect('${name.replace(/'/g,"\'")}','${inputEl.id}','${listId}')">
+      <span class="ac-icon">👤</span><span class="ac-name">${display}</span>
+    </div>`;
+  }).join('');
+  list.classList.remove('hidden');
+}
+
+window.acSelect = function(name, inputId, listId) {
+  document.getElementById(inputId).value = name;
+  document.getElementById(listId).classList.add('hidden');
+  if (acState[listId]) acState[listId].highlight = -1;
+  // Remove error state if any
+  document.getElementById(inputId).classList.remove('input-error');
+}
+
+window.acKeydown = function(e, listId, inputId) {
+  const list = document.getElementById(listId);
+  const items = list.querySelectorAll('.autocomplete-item');
+  if (!acState[listId]) acState[listId] = { highlight: -1 };
+
+  if (list.classList.contains('hidden') || items.length === 0) return;
+
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    acState[listId].highlight = Math.min(acState[listId].highlight + 1, items.length - 1);
+    items.forEach((el, i) => el.classList.toggle('highlighted', i === acState[listId].highlight));
+    // Scroll into view
+    if (items[acState[listId].highlight]) items[acState[listId].highlight].scrollIntoView({ block: 'nearest' });
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    acState[listId].highlight = Math.max(acState[listId].highlight - 1, 0);
+    items.forEach((el, i) => el.classList.toggle('highlighted', i === acState[listId].highlight));
+    if (items[acState[listId].highlight]) items[acState[listId].highlight].scrollIntoView({ block: 'nearest' });
+  } else if (e.key === 'Enter') {
+    if (acState[listId].highlight >= 0 && items[acState[listId].highlight]) {
+      e.preventDefault();
+      acSelect(items[acState[listId].highlight].dataset.name, inputId, listId);
+    }
+  } else if (e.key === 'Escape') {
+    list.classList.add('hidden');
+    acState[listId].highlight = -1;
+  }
+}
+
+// Close autocomplete on outside click or scroll
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.autocomplete-wrap')) {
+    document.querySelectorAll('.autocomplete-list').forEach(l => l.classList.add('hidden'));
+  }
+});
+document.addEventListener('scroll', () => {
+  document.querySelectorAll('.autocomplete-list').forEach(l => l.classList.add('hidden'));
+}, true);
+
+function addHistory(container, result) {
+  const labels = { win: 'W', lose: 'L', draw: 'D' };
+  const item = document.createElement('span');
+  item.className = 'history-item ' + labels[result];
+  item.textContent = result === 'win' ? 'נצח' : result === 'lose' ? 'הפסיד' : 'תיקו';
+  container.prepend(item);
+  if (container.children.length > 20) container.removeChild(container.lastChild);
+}
+
+// ==================== MODE SWITCH ====================
+window.setMode = function(mode) {
+  currentMode = mode;
+  trackModeSwitch(mode);
+  ['computer','local','online'].forEach(m => {
+    document.getElementById('screen-' + m).classList.toggle('hidden', m !== mode);
+    document.getElementById('mode-' + m).classList.toggle('active', m === mode);
+  });
+  if (mode === 'online' && oState.roomCode) {
+    // Already in room, stay in game
+  }
+};
+
+// ==================== COMPUTER MODE ====================
+window.startComputerGame = function() {
+  const name = document.getElementById('c-name-input').value.trim();
+  const errEl = document.getElementById('c-name-err');
+  const inputEl = document.getElementById('c-name-input');
+  if (!name) {
+    errEl.classList.add('show');
+    inputEl.classList.add('input-error');
+    return;
+  }
+  errEl.classList.remove('show');
+  inputEl.classList.remove('input-error');
+  cPlayerName = name;
+  savePlayer(name);
+  cScore = { wins: 0, losses: 0, draws: 0 };
+  document.getElementById('c-wins').textContent = 0;
+  document.getElementById('c-draws').textContent = 0;
+  document.getElementById('c-losses').textContent = 0;
+  document.getElementById('c-history').innerHTML = '';
+  document.getElementById('c-my-name').textContent = name;
+  document.getElementById('c-result').className = 'result-banner empty';
+  document.getElementById('c-result').textContent = 'בחר את המהלך שלך';
+  setDisplay(document.getElementById('c-player-display'), null, false);
+  setDisplay(document.getElementById('c-cpu-display'), null, false);
+  document.getElementById('c-name-setup').classList.add('hidden');
+  document.getElementById('c-game').classList.remove('hidden');
+};
+
+window.resetComputerMode = function() {
+  document.getElementById('c-game').classList.add('hidden');
+  document.getElementById('c-name-setup').classList.remove('hidden');
+  document.getElementById('c-name-input').value = '';
+  cPlayerName = null;
+};
+
+window.playComputer = function(choice) {
+  const cpu = randomChoice();
+  setDisplay(document.getElementById('c-player-display'), choice);
+  setDisplay(document.getElementById('c-cpu-display'), cpu);
+
+  const r = getWinner(choice, cpu);
+  const resultEl = document.getElementById('c-result');
+  const histEl = document.getElementById('c-history');
+
+  if (r === 'draw') {
+    resultEl.className = 'result-banner draw';
+    resultEl.textContent = '🤝 תיקו!';
+    cScore.draws++;
+    addHistory(histEl, 'draw');
+  } else if (r === 'a') {
+    resultEl.className = 'result-banner win';
+    resultEl.textContent = '🎉 ניצחת!';
+    cScore.wins++;
+    addHistory(histEl, 'win');
+  } else {
+    resultEl.className = 'result-banner lose';
+    resultEl.textContent = `😤 הפסדת! מחשב בחר ${NAMES[cpu]}`;
+    cScore.losses++;
+    addHistory(histEl, 'lose');
+  }
+
+  document.getElementById('c-wins').textContent = cScore.wins;
+  document.getElementById('c-draws').textContent = cScore.draws;
+  document.getElementById('c-losses').textContent = cScore.losses;
+  trackRound('computer', choice, cpu, r);
+
+  saveGame({
+    mode: 'computer',
+    p1: cPlayerName,
+    p2: 'מחשב',
+    p1Choice: choice,
+    p2Choice: cpu,
+    result: r === 'draw' ? 'draw' : r === 'a' ? 'p1_win' : 'p2_win',
+    winner: r === 'draw' ? null : r === 'a' ? cPlayerName : 'מחשב'
+  });
+};
+
+// ==================== LOCAL MODE ====================
+window.startLocalGame = function() {
+  const n1 = document.getElementById('l-name1').value.trim();
+  const n2 = document.getElementById('l-name2').value.trim();
+  let valid = true;
+  if (!n1) {
+    document.getElementById('l-name1-err').classList.add('show');
+    document.getElementById('l-name1').classList.add('input-error');
+    valid = false;
+  } else {
+    document.getElementById('l-name1-err').classList.remove('show');
+    document.getElementById('l-name1').classList.remove('input-error');
+  }
+  if (!n2) {
+    document.getElementById('l-name2-err').classList.add('show');
+    document.getElementById('l-name2').classList.add('input-error');
+    valid = false;
+  } else {
+    document.getElementById('l-name2-err').classList.remove('show');
+    document.getElementById('l-name2').classList.remove('input-error');
+  }
+  if (!valid) return;
+  lNames.p1 = n1;
+  lNames.p2 = n2;
+  savePlayer(n1);
+  savePlayer(n2);
+  document.getElementById('l-p1name').textContent = lNames.p1;
+  document.getElementById('l-p2name').textContent = lNames.p2;
+  document.getElementById('l-p1name-score').textContent = lNames.p1;
+  document.getElementById('l-p2name-score').textContent = lNames.p2;
+  document.getElementById('local-name-setup').classList.add('hidden');
+  document.getElementById('local-playing').classList.remove('hidden');
+  lScore = { p1: 0, p2: 0, draws: 0 };
+  document.getElementById('l-p1wins').textContent = 0;
+  document.getElementById('l-draws').textContent = 0;
+  document.getElementById('l-p2wins').textContent = 0;
+  document.getElementById('l-history').innerHTML = '';
+  resetLocalRound();
+};
+
+function resetLocalRound() {
+  lState = { phase: 'p1', p1Choice: null, p2Choice: null };
+  setDisplay(document.getElementById('l-p1-display'), null, false);
+  setDisplay(document.getElementById('l-p2-display'), null, false);
+  document.getElementById('l-result').className = 'result-banner empty';
+  document.getElementById('l-result').textContent = `${lNames.p1} בוחר...`;
+  document.getElementById('local-choices').querySelectorAll('button').forEach(b => b.disabled = false);
+  document.getElementById('local-next-btn').classList.add('hidden');
+  document.getElementById('local-pass-p1').classList.add('hidden');
+  document.getElementById('local-pass-p2').classList.add('hidden');
+  document.getElementById('local-game').classList.remove('hidden');
+}
+
+window.localChoice = function(choice) {
+  if (lState.phase === 'p1') {
+    lState.p1Choice = choice;
+    // Show "chosen" on p1 side as lock icon
+    document.getElementById('l-p1-display').textContent = '🔒';
+    document.getElementById('l-p1-display').className = 'choice-display';
+    document.getElementById('local-choices').querySelectorAll('button').forEach(b => b.disabled = true);
+    // Show pass screen
+    document.getElementById('local-game').classList.add('hidden');
+    document.getElementById('local-pass-p1').classList.remove('hidden');
+  } else if (lState.phase === 'p2') {
+    lState.p2Choice = choice;
+    document.getElementById('l-p2-display').textContent = '🔒';
+    document.getElementById('l-p2-display').className = 'choice-display';
+    document.getElementById('local-choices').querySelectorAll('button').forEach(b => b.disabled = true);
+    // Show pass screen for p1
+    document.getElementById('local-game').classList.add('hidden');
+    document.getElementById('local-pass-p2').classList.remove('hidden');
+  }
+};
+
+window.showLocalP2 = function() {
+  lState.phase = 'p2';
+  document.getElementById('local-pass-p1').classList.add('hidden');
+  document.getElementById('local-game').classList.remove('hidden');
+  document.getElementById('local-choices').querySelectorAll('button').forEach(b => b.disabled = false);
+  document.getElementById('l-result').textContent = `${lNames.p2} בוחר...`;
+};
+
+window.showLocalP1 = function() {
+  // Both chose, reveal!
+  document.getElementById('local-pass-p2').classList.add('hidden');
+  document.getElementById('local-game').classList.remove('hidden');
+  revealLocal();
+};
+
+function revealLocal() {
+  const p1 = lState.p1Choice, p2 = lState.p2Choice;
+  setDisplay(document.getElementById('l-p1-display'), p1);
+  setDisplay(document.getElementById('l-p2-display'), p2);
+
+  const r = getWinner(p1, p2);
+  const resultEl = document.getElementById('l-result');
+  const histEl = document.getElementById('l-history');
+
+  if (r === 'draw') {
+    resultEl.className = 'result-banner draw';
+    resultEl.textContent = '🤝 תיקו!';
+    lScore.draws++;
+    addHistory(histEl, 'draw');
+  } else if (r === 'a') {
+    resultEl.className = 'result-banner win';
+    resultEl.textContent = `🎉 ${lNames.p1} ניצח!`;
+    lScore.p1++;
+    addHistory(histEl, 'win');
+  } else {
+    resultEl.className = 'result-banner lose';
+    resultEl.textContent = `🎉 ${lNames.p2} ניצח!`;
+    lScore.p2++;
+    addHistory(histEl, 'lose');
+  }
+
+  document.getElementById('l-p1wins').textContent = lScore.p1;
+  document.getElementById('l-draws').textContent = lScore.draws;
+  document.getElementById('l-p2wins').textContent = lScore.p2;
+  document.getElementById('local-next-btn').classList.remove('hidden');
+
+  saveGame({
+    mode: 'local',
+    p1: lNames.p1,
+    p2: lNames.p2,
+    p1Choice: p1,
+    p2Choice: p2,
+    result: r === 'draw' ? 'draw' : r === 'a' ? 'p1_win' : 'p2_win',
+    winner: r === 'draw' ? null : r === 'a' ? lNames.p1 : lNames.p2
+  });
+}
+
+window.localNextRound = function() {
+  resetLocalRound();
+};
+
+// ==================== ONLINE MODE ====================
+function genRoomCode() {
+  return String(Math.floor(1000 + Math.random() * 9000));
+}
+
+window.createRoom = async function() {
+  if (!db) { showOnlineError("Firebase לא מוגדר. שנה את פרטי ה-config."); return; }
+  const name = getOnlineNameOrError();
+  if (!name) return;
+  const code = genRoomCode();
+
+  try {
+    const rRef = ref(db, 'rooms/' + code);
+    const snap = await get(rRef);
+    // Make sure code isn't taken
+    const finalCode = snap.exists() ? genRoomCode() : code;
+    await set(ref(db, 'rooms/' + finalCode), {
+      p1: { name, choice: null },
+      p2: null,
+      round: 1,
+      createdAt: Date.now(),
+      lastActivity: Date.now()
     });
 
-    function makeChoice(player, choice) {
-      if (mode === "computer") {
-        player1Choice = choice;
-        player2Choice = getComputerChoice();
-        showResult();
+    oState.roomCode = finalCode;
+    oState.myId = 'p1';
+    oState.myName = name;
+    oState.score = { wins: 0, losses: 0, draws: 0 };
+    oState.history = [];
+
+    document.getElementById('online-lobby').classList.add('hidden');
+    document.getElementById('online-waiting').classList.remove('hidden');
+    document.getElementById('display-room-code').textContent = finalCode;
+
+    savePlayer(name);
+    listenRoom(finalCode);
+    trackRoomCreate();
+  } catch(e) {
+    showOnlineError("שגיאה ביצירת חדר: " + e.message);
+  }
+};
+
+window.joinRoom = async function() {
+  if (!db) { showOnlineError("Firebase לא מוגדר."); return; }
+  const name = getOnlineNameOrError();
+  if (!name) return;
+  const code = document.getElementById('join-code').value.trim();
+  if (code.length !== 4) { showOnlineError("הכנס קוד בן 4 ספרות"); return; }
+
+  try {
+    const rRef = ref(db, 'rooms/' + code);
+    const snap = await get(rRef);
+    if (!snap.exists()) { showOnlineError("חדר לא נמצא"); return; }
+    const data = snap.val();
+    if (data.p2) { showOnlineError("החדר מלא"); return; }
+    await update(ref(db, 'rooms/' + code), { p2: { name, choice: null }, lastActivity: Date.now() });
+
+    oState.roomCode = code;
+    oState.myId = 'p2';
+    oState.myName = name;
+    oState.oppName = data.p1.name;
+    oState.score = { wins: 0, losses: 0, draws: 0 };
+    oState.history = [];
+
+    document.getElementById('online-lobby').classList.add('hidden');
+    showOnlineGame();
+    savePlayer(name);
+    listenRoom(code);
+    trackRoomJoin();
+  } catch(e) {
+    showOnlineError("שגיאה בהצטרפות: " + e.message);
+  }
+};
+
+function showOnlineGame() {
+  document.getElementById('online-waiting').classList.add('hidden');
+  document.getElementById('online-game').classList.remove('hidden');
+  document.getElementById('o-my-name').textContent = oState.myName;
+  document.getElementById('o-opp-name').textContent = oState.oppName || '...';
+  document.getElementById('o-room-badge').textContent = '#' + oState.roomCode;
+  setDisplay(document.getElementById('o-my-display'), null, false);
+  setDisplay(document.getElementById('o-opp-display'), null, false);
+  document.getElementById('o-result').className = 'result-banner empty';
+  document.getElementById('o-result').textContent = 'בחר את המהלך שלך';
+  document.getElementById('online-choices').querySelectorAll('button').forEach(b => b.disabled = false);
+}
+
+function listenRoom(code) {
+  roomRef = ref(db, 'rooms/' + code);
+  roomListener = onValue(roomRef, (snap) => {
+    if (!snap.exists()) {
+      // Room deleted
+      if (oState.roomCode) handleRoomClosed();
+      return;
+    }
+    const data = snap.val();
+
+    // Waiting (private room) or matchmaking: check if p2 joined
+    const waitingVisible = !document.getElementById('online-waiting').classList.contains('hidden');
+    const mmVisible = !document.getElementById('online-matchmaking').classList.contains('hidden');
+    if (waitingVisible || mmVisible) {
+      if (data.p2) {
+        oState.oppName = data.p2.name;
+        // Clean up queue listener if matchmaking
+        if (mmQueueRef && mmQueueListener) { off(mmQueueRef); mmQueueListener = null; }
+        if (mmMyQueueKey) { try { remove(ref(db, 'queue/' + mmMyQueueKey)); } catch(e){} mmMyQueueKey = null; }
+        document.getElementById('online-matchmaking').classList.add('hidden');
+        showOnlineGame();
+      }
+      return;
+    }
+
+    // Update opp name
+    const oppId = oState.myId === 'p1' ? 'p2' : 'p1';
+    if (data[oppId]) {
+      oState.oppName = data[oppId].name;
+      document.getElementById('o-opp-name').textContent = oState.oppName;
+    }
+
+    // Check if both chose
+    if (data.p1 && data.p2 && data.p1.choice && data.p2.choice) {
+      const myChoice = data[oState.myId].choice;
+      const oppChoice = data[oppId].choice;
+
+      // Only process if we haven't shown result yet
+      if (!oState.waiting) return; // Already processing
+
+      oState.waiting = false;
+
+      // Stamp last activity so cleanup knows this room is alive
+      update(ref(db, 'rooms/' + oState.roomCode), { lastActivity: Date.now() }).catch(() => {});
+
+      setDisplay(document.getElementById('o-my-display'), myChoice);
+      setDisplay(document.getElementById('o-opp-display'), oppChoice);
+
+      const r = getWinner(myChoice, oppChoice);
+      const resultEl = document.getElementById('o-result');
+
+      // Determine p1/p2 choices and names for saving
+      const p1Choice = data.p1.choice;
+      const p2Choice = data.p2.choice;
+      const p1Name = data.p1.name;
+      const p2Name = data.p2.name;
+      const gameResult = r === 'draw' ? 'draw' : r === 'a' ? 'p1_win' : 'p2_win';
+      const winnerName = r === 'draw' ? null : r === 'a' ? p1Name : p2Name;
+
+      // Only p1 writes the game record (avoid duplicate)
+      if (oState.myId === 'p1') {
+        saveGame({
+          mode: 'online',
+          roomCode: oState.roomCode,
+          p1: p1Name,
+          p2: p2Name,
+          p1Choice,
+          p2Choice,
+          result: gameResult,
+          winner: winnerName
+        });
+      }
+
+      if (r === 'draw') {
+        resultEl.className = 'result-banner draw';
+        resultEl.textContent = '🤝 תיקו!';
+        oState.score.draws++;
+        addHistory(document.getElementById('o-history'), 'draw');
+      } else if ((r === 'a' && oState.myId === 'p1') || (r === 'b' && oState.myId === 'p2')) {
+        resultEl.className = 'result-banner win';
+        resultEl.textContent = '🎉 ניצחת!';
+        oState.score.wins++;
+        addHistory(document.getElementById('o-history'), 'win');
       } else {
-        if (player === 1) {
-          player1Choice = choice;
-          document.getElementById('player1').style.display = 'none';
-          document.getElementById('player2').style.display = 'flex';
-          document.getElementById('profile2').style.display = 'flex';
-        } else {
-          player2Choice = choice;
-          showResult();
-        }
+        resultEl.className = 'result-banner lose';
+        resultEl.textContent = '😤 הפסדת!';
+        oState.score.losses++;
+        addHistory(document.getElementById('o-history'), 'lose');
+      }
+
+      document.getElementById('o-mywins').textContent = oState.score.wins;
+      document.getElementById('o-draws').textContent = oState.score.draws;
+      document.getElementById('o-losses').textContent = oState.score.losses;
+
+      // Reset for next round after delay
+      setTimeout(() => {
+        if (!oState.roomCode) return;
+        update(ref(db, 'rooms/' + oState.roomCode), {
+          [`${oState.myId}/choice`]: null
+        });
+        setDisplay(document.getElementById('o-my-display'), null, false);
+        setDisplay(document.getElementById('o-opp-display'), null, false);
+        document.getElementById('o-result').className = 'result-banner empty';
+        document.getElementById('o-result').textContent = 'בחר את המהלך שלך';
+        document.getElementById('online-choices').querySelectorAll('button').forEach(b => b.disabled = false);
+        oState.myChoice = null;
+      }, 2500);
+    } else if (data[oppId] && data[oppId].choice && !data[oState.myId]?.choice) {
+      // Opponent chose, waiting for me
+      setDisplay(document.getElementById('o-opp-display'), null, false);
+      document.getElementById('o-opp-display').textContent = '🔒';
+    }
+  });
+}
+
+window.onlineChoice = async function(choice) {
+  if (!db || !oState.roomCode) return;
+  document.getElementById('online-choices').querySelectorAll('button').forEach(b => b.disabled = true);
+  oState.myChoice = choice;
+  oState.waiting = true;
+
+  setDisplay(document.getElementById('o-my-display'), choice);
+  document.getElementById('o-result').className = 'result-banner empty';
+  document.getElementById('o-result').textContent = 'ממתין ליריב...';
+
+  try {
+    await update(ref(db, 'rooms/' + oState.roomCode + '/' + oState.myId), { choice });
+  } catch(e) {
+    showOnlineError("שגיאת חיבור");
+  }
+};
+
+function handleRoomClosed() {
+  showToast('החדר נסגר');
+  leaveRoomCleanup();
+}
+
+window.leaveRoom = async function() {
+  if (db && oState.roomCode) {
+    try { await remove(ref(db, 'rooms/' + oState.roomCode)); } catch(e) {}
+  }
+  leaveRoomCleanup();
+};
+
+function leaveRoomCleanup() {
+  if (roomRef && roomListener) {
+    off(roomRef);
+    roomListener = null;
+  }
+  oState.roomCode = null;
+  oState.myId = null;
+  document.getElementById('online-waiting').classList.add('hidden');
+  document.getElementById('online-matchmaking').classList.add('hidden');
+  document.getElementById('online-game').classList.add('hidden');
+  document.getElementById('online-lobby').classList.remove('hidden');
+  document.getElementById('lobby-error').classList.add('hidden');
+}
+
+window.copyCode = function() {
+  const code = document.getElementById('display-room-code').textContent;
+  navigator.clipboard.writeText(code).then(() => showToast('קוד הועתק: ' + code));
+};
+
+function showOnlineError(msg) {
+  const el = document.getElementById('lobby-error');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+
+// ==================== MATCHMAKING ====================
+let mmQueueRef = null;
+let mmQueueListener = null;
+let mmMyQueueKey = null;
+
+function getOnlineNameOrError() {
+  const name = document.getElementById('online-username').value.trim();
+  if (!name) {
+    document.getElementById('o-name-err').classList.add('show');
+    document.getElementById('online-username').classList.add('input-error');
+    return null;
+  }
+  document.getElementById('o-name-err').classList.remove('show');
+  document.getElementById('online-username').classList.remove('input-error');
+  return name;
+}
+
+window.findRandomOpponent = async function() {
+  if (!db) { showOnlineError("Firebase לא מוגדר."); return; }
+  const name = getOnlineNameOrError();
+  if (!name) return;
+
+  document.getElementById('online-lobby').classList.add('hidden');
+  document.getElementById('online-matchmaking').classList.remove('hidden');
+  document.getElementById('mm-queue-size').textContent = '';
+
+  try {
+    // Check if there's already someone waiting in the queue
+    const qSnap = await get(ref(db, 'queue'));
+    if (qSnap.exists()) {
+      const entries = Object.entries(qSnap.val());
+      // Find first entry that is NOT us (by name)
+      const opponent = entries.find(([k, v]) => v.name !== name);
+      if (opponent) {
+        const [oppKey, oppData] = opponent;
+        // We join their room as p2
+        const code = oppData.roomCode;
+        // Remove them from queue
+        await remove(ref(db, 'queue/' + oppKey));
+
+        await update(ref(db, 'rooms/' + code), { p2: { name, choice: null }, lastActivity: Date.now() });
+        oState.roomCode = code;
+        oState.myId = 'p2';
+        oState.myName = name;
+        oState.oppName = oppData.name;
+        oState.score = { wins: 0, losses: 0, draws: 0 };
+        oState.history = [];
+        document.getElementById('online-matchmaking').classList.add('hidden');
+        savePlayer(name);
+        showOnlineGame();
+        listenRoom(code);
+        trackRoomJoin();
+        return;
       }
     }
 
-    function getComputerChoice() {
-      const choices = ['אבן', 'נייר', 'מספריים'];
-      return choices[Math.floor(Math.random() * 3)];
-    }
+    // No one waiting – create room and add ourselves to queue
+    const code = genRoomCode();
+    await set(ref(db, 'rooms/' + code), {
+      p1: { name, choice: null },
+      p2: null,
+      round: 1,
+      createdAt: Date.now()
+    });
 
-    function flashChoice(choice, player) {
-      const container = document.getElementById(player === 1 ? 'player1' : 'player2');
-      const buttons = container.querySelectorAll('button');
-      buttons.forEach(btn => {
-        if (btn.innerText.includes(choice)) {
-          btn.classList.add('flash');
-          setTimeout(() => btn.classList.remove('flash'), 300);
-        }
-      });
-    }
+    const qRef = ref(db, 'queue');
+    const { push } = await import("https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js");
+    const newQRef = push(qRef);
+    mmMyQueueKey = newQRef.key;
+    await set(newQRef, { name, roomCode: code, joinedAt: Date.now() });
 
-    function showResult() {
-      let winner = getWinner(player1Choice, player2Choice);
-      let resultDiv = document.getElementById('result');
-      let resultText = "";
+    oState.roomCode = code;
+    oState.myId = 'p1';
+    oState.myName = name;
+    oState.score = { wins: 0, losses: 0, draws: 0 };
+    oState.history = [];
 
-      flashChoice(player1Choice, 1);
-      flashChoice(player2Choice, 2);
+    savePlayer(name);
+    trackRoomCreate();
 
-      resultText += `${player1Emoji} ${player1Name} בחר: ${player1Choice} <br>`;
-      resultText += `${player2Emoji} ${player2Name} בחר: ${player2Choice} <br>`;
+    // Listen for someone joining our room
+    listenRoom(code);
 
-      if (winner === "draw") {
-        resultText += "<strong>תיקו!</strong>";
-      } else if (winner === "player1") {
-        resultText += `<strong class="winner">${player1Emoji} ${player1Name} ניצח!</strong>`;
-        score.player1++;
-      } else {
-        resultText += `<strong class="winner">${player2Emoji} ${player2Name} ניצח!</strong>`;
-        if (mode === "computer") score.computer++; else score.player2++;
-      }
+    // Also watch queue size for display
+    mmQueueRef = ref(db, 'queue');
+    mmQueueListener = onValue(mmQueueRef, (snap) => {
+      const size = snap.exists() ? Object.keys(snap.val()).length : 0;
+      const el = document.getElementById('mm-queue-size');
+      if (el) el.textContent = size > 1 ? `${size} שחקנים בתור` : 'אתה ראשון בתור';
+    });
 
-      resultDiv.innerHTML = resultText;
-      updateScore();
-      setTimeout(resetGame, 2000);
-    }
+  } catch(e) {
+    showOnlineError("שגיאת matchmaking: " + e.message);
+    document.getElementById('online-matchmaking').classList.add('hidden');
+    document.getElementById('online-lobby').classList.remove('hidden');
+  }
+};
 
-    function getWinner(choice1, choice2) {
-      if (choice1 === choice2) return "draw";
-      if (
-        (choice1 === 'אבן' && choice2 === 'מספריים') ||
-        (choice1 === 'נייר' && choice2 === 'אבן') ||
-        (choice1 === 'מספריים' && choice2 === 'נייר')
-      ) {
-        return "player1";
-      }
-      return "player2";
-    }
+window.cancelMatchmaking = async function() {
+  // Remove from queue if we're in it
+  if (mmMyQueueKey) {
+    try { await remove(ref(db, 'queue/' + mmMyQueueKey)); } catch(e) {}
+    mmMyQueueKey = null;
+  }
+  if (mmQueueRef && mmQueueListener) {
+    off(mmQueueRef);
+    mmQueueListener = null;
+  }
+  // Delete our room
+  if (oState.roomCode) {
+    try { await remove(ref(db, 'rooms/' + oState.roomCode)); } catch(e) {}
+  }
+  leaveRoomCleanup();
+};
 
-    function updateScore() {
-      const scoreText = `${player1Emoji} ${player1Name}: ${score.player1} | ${player2Emoji} ${mode === "computer" ? "מחשב" : player2Name}: ${mode === "computer" ? score.computer : score.player2}`;
-      document.getElementById('score').innerText = scoreText;
-    }
+// ==================== ANALYTICS HELPERS ====================
+function trackRound(mode, p1Choice, p2Choice, result) {
+  try { logEvent(analytics, 'round_played', { mode, p1_choice: p1Choice, p2_choice: p2Choice, result }); } catch(e) {}
+}
+function trackModeSwitch(mode) {
+  try { logEvent(analytics, 'mode_switched', { mode }); } catch(e) {}
+}
+function trackRoomCreate() {
+  try { logEvent(analytics, 'room_created'); } catch(e) {}
+}
+function trackRoomJoin() {
+  try { logEvent(analytics, 'room_joined'); } catch(e) {}
+}
 
-    function resetGame() {
-      player1Choice = null;
-      player2Choice = null;
-      document.getElementById('result').innerText = "";
-      document.getElementById('player1').style.display = 'flex';
-      document.getElementById('player2').style.display = 'none';
-      document.getElementById('profile2').style.display = (mode === "computer") ? "none" : "flex";
-    }
-
-    function updateNames() {
-      const p1 = document.getElementById('player1NameInput').value.trim();
-      const p2 = document.getElementById('player2NameInput').value.trim();
-      const e1 = document.getElementById('player1Emoji').value.trim();
-      const e2 = document.getElementById('player2Emoji').value.trim();
-
-      player1Name = p1 || (mode === "computer" ? "אתה" : "שחקן 1");
-      player2Name = p2 || (mode === "computer" ? "מחשב" : "שחקן 2");
-
-      player1Emoji = e1 || "🧑";
-      player2Emoji = e2 || (mode === "computer" ? "💻" : "🧑");
-
-      document.getElementById('name1').innerText = player1Name;
-      document.getElementById('name2').innerText = player2Name;
-      document.getElementById('emoji1').innerText = player1Emoji;
-      document.getElementById('emoji2').innerText = player2Emoji;
-
-      updateScore();
-    }
-
-    updateNames();
-    resetGame();
-  </script>
+</script>
 </body>
 </html>

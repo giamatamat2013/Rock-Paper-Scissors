@@ -1,0 +1,42 @@
+{
+  "rules": {
+    "players": {
+      ".read": true,
+      "$playerKey": {
+        ".write": true,
+        ".validate": "newData.hasChildren(['name', 'lastSeen']) && newData.child('name').isString() && newData.child('name').val().length >= 1 && newData.child('name').val().length <= 16"
+      }
+    },
+    "queue": {
+      ".read": true,
+      "$entryKey": {
+        ".write": true,
+        ".validate": "!newData.exists() || (newData.hasChildren(['name', 'roomCode', 'joinedAt']) && newData.child('name').isString() && newData.child('roomCode').isString())"
+      }
+    },
+    "games": {
+      ".read": true,
+      "$gameId": {
+        ".write": "!data.exists()",
+        ".validate": "newData.hasChildren(['mode', 'p1', 'p2', 'p1Choice', 'p2Choice', 'result', 'timestamp']) && newData.child('mode').val().matches(/^(computer|local|online)$/) && newData.child('p1Choice').val().matches(/^(rock|paper|scissors)$/) && newData.child('p2Choice').val().matches(/^(rock|paper|scissors)$/) && newData.child('result').val().matches(/^(p1_win|p2_win|draw)$/) && newData.child('timestamp').isNumber()"
+      }
+    },
+    "rooms": {
+      "$roomCode": {
+        ".read": true,
+        ".write": "newData.exists() || data.exists()",
+        ".validate": "newData.hasChildren(['p1', 'createdAt'])",
+        "p1": {
+          ".validate": "newData.hasChildren(['name']) && newData.child('name').isString() && newData.child('name').val().length >= 1"
+        },
+        "p2": {
+          ".validate": "!newData.exists() || (newData.hasChildren(['name']) && newData.child('name').isString() && newData.child('name').val().length >= 1)"
+        },
+        "round":        { ".validate": "newData.isNumber()" },
+        "createdAt":    { ".validate": "newData.isNumber()" },
+        "lastActivity": { ".validate": "newData.isNumber()" },
+        "$other":       { ".validate": false }
+      }
+    }
+  }
+}
