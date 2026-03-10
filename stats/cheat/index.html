@@ -1096,6 +1096,7 @@
 
 <div class="toast" id="toast"></div>
 
+<script src="/rps-engine.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
 import { getDatabase, ref, get, push, update, onValue } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js";
@@ -1181,11 +1182,10 @@ let oppActualChoice = null; // what opponent played
 // Each entry: { oppChoice, outcome (from user's POV), timestamp }
 let sessionHistory = [];
 
-// ── CONSTANTS ──
-const EMOJI    = { rock: '✊', paper: '📄', scissors: '✂️' };
-const HEB      = { rock: 'אבן', paper: 'נייר', scissors: 'מספריים' };
-const BEATS    = { rock: 'paper', paper: 'scissors', scissors: 'rock' };
-const BEATEN_BY= { rock: 'scissors', paper: 'rock', scissors: 'paper' };
+// ── מנוע החישוב המשותף (נטען כ-script רגיל, נגיש דרך window) ──
+const RPSEngine = window.RPSEngine;
+// ── CONSTANTS (from shared engine) ──
+const { EMOJI, HEB, BEATS, BEATEN_BY } = RPSEngine;
 
 // ── UTILS ──
 function showToast(msg, dur=2500) {
@@ -1341,306 +1341,6 @@ function updateRoundApplyBtn() {
   el('round-apply-btn').disabled = !ready;
 }
 
-// Compute memory decay factor: exponential decay toward ~10 min half-life
-// calibrated from data — if lots of consecutive rounds, half-life shrinks
-function computeDecay(elapsedMs, halfLifeMs) {
-  if (!elapsedMs || elapsedMs <= 0) return 1;
-  return Math.pow(0.5, elapsedMs / halfLifeMs);
-}
-
-// ════════════════════════════════════════════════
-// RECENCY WEIGHTING
-// Each game gets a .w (0–1) based on age.
-// Half-life is learned from data: if a player's style drifts
-// quickly, recent games matter much more.
-// ════════════════════════════════════════════════
-function computeRecencyHalfLife(games) {
-  const DAY = 24 * 60 * 60 * 1000;
-  const DEFAULT = 30 * DAY;
-  const choices = ['rock','paper','scissors'];
-  const sorted  = games.filter(g => g.timestamp && choices.includes(g.playerChoice))
-    .sort((a,b) => a.timestamp - b.timestamp);
-  if (sorted.length < 10) return DEFAULT;
-
-  // Compare oldest quarter vs newest quarter distributions
-  const q       = Math.max(Math.floor(sorted.length / 4), 3);
-  const oldest  = sorted.slice(0, q);
-  const newest  = sorted.slice(-q);
-  const dist = seg => {
-    const d = {};
-    const t = seg.length;
-    choices.forEach(c => d[c] = seg.filter(g => g.playerChoice===c).length / t);
-    return d;
-  };
-  const od = dist(oldest), nd = dist(newest);
-  const drift = choices.reduce((s,c) => s + Math.abs(od[c] - nd[c]), 0) / 3;
-
-  // Map drift to half-life: more drift → shorter half-life
-  if (drift < 0.05) return 60 * DAY;   // very stable
-  if (drift < 0.10) return DEFAULT;     // moderate
-  if (drift < 0.18) return 15 * DAY;   // changing
-  return 7 * DAY;                       // volatile
-}
-
-function addRecencyWeights(games, recencyHalfLife, activeMode) {
-  const now = Date.now();
-  // mode multiplier: matching mode gets 2x, mismatching gets 0.5x, unknown gets 1x
-  const modeMatch    = activeMode === 'app'      ? 'online' : 'local';
-  const modeMismatch = activeMode === 'app'      ? 'local'  : 'online';
-  return games.map(g => {
-    const recency = g.timestamp ? Math.max(computeDecay(now - g.timestamp, recencyHalfLife), 0.05) : 0.5;
-    const modeMult = activeMode
-      ? (g.mode === modeMatch ? 2.0 : g.mode === modeMismatch ? 0.5 : 1.0)
-      : 1.0;
-    const playerMult = g._playerW ?? 1;
-    return { ...g, w: recency * modeMult * playerMult };
-  });
-}
-
-// Compute the data-driven half-life: look at win-stay / lose-shift accuracy across games
-// with different elapsed times — find where accuracy drops to ~50% of peak
-function computeHalfLifeFromData(games) {
-  // Default from literature: ~8-12 minutes
-  const DEFAULT_HALF_LIFE = 10 * 60 * 1000; // 10 min in ms
-  const sortedGames = games
-    .filter(g => g.timestamp && g.prevOutcome && g.playerChoice)
-    .sort((a, b) => a.timestamp - b.timestamp);
-
-  if (sortedGames.length < 6) return DEFAULT_HALF_LIFE;
-
-  // Measure win-stay / lose-shift success at various time gaps
-  const buckets = [
-    { maxMs: 2*60*1000,  hits: 0, total: 0 },
-    { maxMs: 5*60*1000,  hits: 0, total: 0 },
-    { maxMs: 10*60*1000, hits: 0, total: 0 },
-    { maxMs: 20*60*1000, hits: 0, total: 0 },
-    { maxMs: Infinity,   hits: 0, total: 0 },
-  ];
-
-  for (let i = 1; i < sortedGames.length; i++) {
-    const g    = sortedGames[i];
-    const prev = sortedGames[i-1];
-    const elapsed = g.timestamp - prev.timestamp;
-    const outcome = g.prevOutcome;
-    if (!outcome) continue;
-
-    let predicted;
-    if (outcome === 'win') predicted = prev.playerChoice; // win-stay
-    else if (outcome === 'loss') predicted = BEATEN_BY[prev.playerChoice]; // lose-shift to what beat opponent
-    else continue;
-
-    const correct = predicted === g.playerChoice;
-    for (const b of buckets) {
-      if (elapsed <= b.maxMs) { b.total++; if (correct) b.hits++; break; }
-    }
-  }
-
-  // Find first bucket where accuracy drops below 60% of the best bucket
-  const rates = buckets.map(b => b.total >= 2 ? b.hits/b.total : null);
-  const peakRate = Math.max(...rates.filter(r => r !== null));
-  if (!peakRate) return DEFAULT_HALF_LIFE;
-
-  const thresholds = [2, 5, 10, 20, 60].map(m => m * 60 * 1000);
-  for (let i = 0; i < rates.length; i++) {
-    if (rates[i] !== null && rates[i] < peakRate * 0.6) {
-      return thresholds[i - 1] || DEFAULT_HALF_LIFE;
-    }
-  }
-  return DEFAULT_HALF_LIFE;
-}
-
-// Compute win-stay / lose-shift weights from data
-function computeWinStayLoseShiftWeights(games) {
-  let wsHits = 0, wsTotal = 0;
-  let lsHits = 0, lsTotal = 0;
-
-  const sorted = games
-    .filter(g => g.timestamp && g.playerChoice)
-    .sort((a, b) => a.timestamp - b.timestamp);
-
-  for (let i = 1; i < sorted.length; i++) {
-    const g    = sorted[i];
-    const prev = sorted[i-1];
-    if (!prev.playerChoice) continue;
-    const w = g.w ?? 1;
-
-    const outcome = g.prevOutcome;
-    if (outcome === 'win') {
-      wsTotal += w;
-      if (g.playerChoice === prev.playerChoice) wsHits += w;
-    } else if (outcome === 'loss') {
-      lsTotal += w;
-      const shifted = BEATEN_BY[BEATEN_BY[prev.playerChoice]];
-      if (g.playerChoice === shifted) lsHits += w;
-    }
-  }
-
-  const wsRate = wsTotal >= 2 ? wsHits / wsTotal : 0.4;
-  const lsRate = lsTotal >= 2 ? lsHits / lsTotal : 0.33;
-
-  const wsWeight = Math.min(Math.max((wsRate - 1/3) * 1.5, 0), 0.30);
-  const lsWeight = Math.min(Math.max((lsRate - 1/3) * 1.5, 0), 0.30);
-
-  return { wsRate, lsRate, wsWeight, lsWeight, wsTotal, lsTotal };
-}
-
-// ════════════════════════════════════════════════
-// NEW: TRANSITION BIAS
-// What does the player pick after (prevChoice, outcome)?
-// e.g. "after playing rock and losing, they almost always switch to scissors"
-// ════════════════════════════════════════════════
-function computeTransitionBias(games) {
-  const choices  = ['rock','paper','scissors'];
-  const outcomes = ['win','loss','tie'];
-  const trans = {};
-  choices.forEach(prev => {
-    trans[prev] = {};
-    outcomes.forEach(out => { trans[prev][out] = { rock:0, paper:0, scissors:0, total:0 }; });
-  });
-
-  const sorted = games.filter(g => g.timestamp && choices.includes(g.playerChoice))
-    .sort((a,b) => a.timestamp - b.timestamp);
-
-  for (let i = 1; i < sorted.length; i++) {
-    const g = sorted[i], prev = sorted[i-1];
-    if (!choices.includes(prev.playerChoice)) continue;
-    const out = g.prevOutcome;
-    if (!outcomes.includes(out)) continue;
-    const w = g.w ?? 1;
-    trans[prev.playerChoice][out][g.playerChoice] += w;
-    trans[prev.playerChoice][out].total           += w;
-  }
-
-  const probs = {};
-  choices.forEach(prev => {
-    probs[prev] = {};
-    outcomes.forEach(out => {
-      const t = trans[prev][out];
-      probs[prev][out] = t.total >= 3 ? {
-        rock: t.rock/t.total, paper: t.paper/t.total, scissors: t.scissors/t.total, total: t.total
-      } : null;
-    });
-  });
-
-  const overallBase = { rock:0, paper:0, scissors:0 };
-  let tot = 0;
-  sorted.forEach(g => { const w = g.w ?? 1; overallBase[g.playerChoice] += w; tot += w; });
-  if (tot > 0) choices.forEach(c => overallBase[c] /= tot);
-
-  let totalDev = 0, cnt = 0;
-  choices.forEach(prev => outcomes.forEach(out => {
-    const p = probs[prev][out];
-    if (!p) return;
-    choices.forEach(c => { totalDev += Math.abs(p[c] - overallBase[c]); cnt++; });
-  }));
-
-  const weight = cnt >= 3 ? Math.min((totalDev / cnt) * 2.0, 0.35) : 0;
-  return { probs, weight };
-}
-
-// ════════════════════════════════════════════════
-// NEW: POST-TIE BIAS
-// What does this player pick right after a tie?
-// Many players have a strong subconscious preference here
-// ════════════════════════════════════════════════
-function computePostTieBias(games) {
-  const choices = ['rock','paper','scissors'];
-  const counts  = { rock:0, paper:0, scissors:0, total:0 };
-
-  const sorted = games.filter(g => g.timestamp && choices.includes(g.playerChoice))
-    .sort((a,b) => a.timestamp - b.timestamp);
-
-  for (let i = 1; i < sorted.length; i++) {
-    if (sorted[i].prevOutcome === 'tie') {
-      const w = sorted[i].w ?? 1;
-      counts[sorted[i].playerChoice] += w;
-      counts.total += w;
-    }
-  }
-
-  if (counts.total < 3) return { probs: null, weight: 0 };
-
-  const probs = {};
-  let totalDev = 0;
-  choices.forEach(c => { probs[c] = counts[c] / counts.total; totalDev += Math.abs(probs[c] - 1/3); });
-
-  return { probs, weight: Math.min(totalDev * 1.8, 0.30), total: counts.total };
-}
-
-// ════════════════════════════════════════════════
-// NEW: OPENING BIAS
-// Players without a personal history tend toward rock (global bias ~35%)
-// Weight shrinks to 0 as personal game count grows
-// ════════════════════════════════════════════════
-function computeOpeningBias(personalCount, globalGames) {
-  const choices    = ['rock','paper','scissors'];
-  const validGames = globalGames.filter(g => choices.includes(g.playerChoice));
-  const total      = validGames.length;
-  if (total < 20) return { rockBias: 0, weight: 0, cutoff: 10 };
-
-  const rockRate = validGames.filter(g => g.playerChoice === 'rock').length / total;
-  const rockBias = Math.max(rockRate - 1/3, 0);
-
-  // Cutoff: how many personal games until opening bias fades out
-  // Default 10 — learned from data in a future iteration
-  const cutoff = 10;
-  if (personalCount >= cutoff) return { rockBias, weight: 0, cutoff };
-
-  const weight = Math.min(rockBias * 2.5 * (1 - personalCount / cutoff), 0.25);
-  return { rockBias, weight, cutoff, personalCount };
-}
-
-// ════════════════════════════════════════════════
-// NEW: STREAK AVOIDANCE
-// Players rarely repeat the same choice 3+ times in a row
-// Learn the personal repeat-rate and use it as a penalty weight
-// ════════════════════════════════════════════════
-function computeStreakAvoidance(games) {
-  const choices = ['rock','paper','scissors'];
-  const sorted  = games.filter(g => g.timestamp && choices.includes(g.playerChoice))
-    .sort((a,b) => a.timestamp - b.timestamp);
-
-  let opportunities = 0, repeats = 0;
-  for (let i = 2; i < sorted.length; i++) {
-    if (sorted[i-1].playerChoice === sorted[i-2].playerChoice) {
-      const w = sorted[i].w ?? 1;
-      opportunities += w;
-      if (sorted[i].playerChoice === sorted[i-1].playerChoice) repeats += w;
-    }
-  }
-
-  if (opportunities < 3) return { repeatRate: 0.12, avoidWeight: 0.25 };
-
-  const repeatRate  = repeats / opportunities;
-  const avoidWeight = Math.min(Math.max((1/3 - repeatRate) * 1.8, 0), 0.40);
-  return { repeatRate, avoidWeight, opportunities };
-}
-
-// ════════════════════════════════════════════════
-// NEW: MIRRORING
-// After losing, some players copy the choice that beat them
-// (subconscious "if only I had played that")
-// ════════════════════════════════════════════════
-function computeMirrorRate(games) {
-  const choices = ['rock','paper','scissors'];
-  const sorted  = games.filter(g => g.timestamp && choices.includes(g.playerChoice))
-    .sort((a,b) => a.timestamp - b.timestamp);
-
-  let total = 0, hits = 0;
-  for (let i = 1; i < sorted.length; i++) {
-    const g = sorted[i], prev = sorted[i-1];
-    if (g.prevOutcome !== 'loss') continue;
-    const w = g.w ?? 1;
-    total += w;
-    if (g.playerChoice === BEATS[prev.playerChoice]) hits += w;
-  }
-
-  if (total < 3) return { mirrorRate: 0, weight: 0 };
-
-  const mirrorRate = hits / total;
-  const weight     = Math.min(Math.max((mirrorRate - 1/3) * 2, 0), 0.30);
-  return { mirrorRate, weight, total };
-}
 
 window.applyRoundResult = function() {
   if (!currentProfile || !roundOutcome) return;
@@ -1668,7 +1368,7 @@ window.applyRoundResult = function() {
 function updateDecayBadge() {
   if (!lastRoundTimestamp || !currentProfile?.halfLife) return;
   const elapsed = Date.now() - lastRoundTimestamp;
-  const decay   = computeDecay(elapsed, currentProfile.halfLife);
+  const decay   = RPSEngine.computeDecay(elapsed, currentProfile.halfLife);
   el('decay-badge').textContent = `זיכרון: ${Math.round(decay * 100)}%`;
   // Update every 30s while decay is active
   if (decay > 0.05) setTimeout(updateDecayBadge, 30000);
@@ -1879,58 +1579,19 @@ window.loadProfile = async function() {
     const snap = await get(ref(db, 'games'));
     if (!snap.exists()) { setStatus('gray', 'אין נתונים עדיין'); el('empty-state').style.display='block'; return; }
 
-    const allGames = Object.entries(snap.val())
-      .map(([id, g]) => ({ id, ...g }))
-      .filter(g => !g.cheated && !g.cpuCheat);
+    const rawGames = Object.entries(snap.val()).map(([id, g]) => ({ id, ...g }));
 
-    let personalGames = [], relevantGames, sourceLabel;
-
-    personalGames = name ? allGames.filter(g => g.p1 === name || g.p2 === name)
-      .map(g => ({
-        ...g,
-        playerChoice: g.p1===name ? g.p1Choice : g.p2Choice,
-        playerPos:    g.p1===name ? g.p1ChoicePosition : g.p2ChoicePosition,
-        playerColors: g.colors,
-        prevOutcome:  g.p1===name ? g.p1PrevOutcome : g.p2PrevOutcome
-      }))
-      .sort((a,b) => (a.timestamp||0) - (b.timestamp||0)) : [];
-
-    if (personalGames.length >= 3) {
-      relevantGames = personalGames;
-      sourceLabel   = `${name} (${personalGames.length} משחקים)`;
-    } else {
-      relevantGames = buildGlobalGames(allGames);
-      sourceLabel   = name
-        ? `כלל המשתמשים (אין מספיק נתונים על ${name})`
-        : `כלל המשתמשים`;
-    }
-
-    const globalGames      = buildGlobalGames(allGames);
-    const recencyHL        = computeRecencyHalfLife(personalGames.length >= 3 ? personalGames : globalGames);
-    const weightedPersonal = addRecencyWeights(personalGames, recencyHL, currentMode);
-    const weightedGlobal   = addRecencyWeights(globalGames,   recencyHL, currentMode);
-    const gamesForSignals  = personalGames.length >= 3 ? weightedPersonal : weightedGlobal;
-    const influence   = computeInfluence(gamesForSignals, weightedGlobal);
-    const wsls        = computeWinStayLoseShiftWeights(gamesForSignals);
-    const halfLife    = computeHalfLifeFromData(gamesForSignals);
-    const transBias   = computeTransitionBias(gamesForSignals);
-    const postTie     = computePostTieBias(gamesForSignals);
-    const openingBias = computeOpeningBias(personalGames.length, weightedGlobal);
-    const streakAvoid = computeStreakAvoidance(gamesForSignals);
-    const mirrorBias  = computeMirrorRate(gamesForSignals);
-    const stats       = computeStats(personalGames.length >= 3 ? weightedPersonal : weightedGlobal);
-
-    currentProfile = { name, games: relevantGames, personalGames, allGames, stats, sourceLabel,
-      influence, wsls, halfLife, transBias, postTie, openingBias, streakAvoid, mirrorBias };
+    // ── כל החישוב מגיע מהמנוע המשותף ──
+    currentProfile = RPSEngine.buildProfile(rawGames, name, currentMode);
     roundOutcome   = null;
     roundOppChoice = null;
     lastRoundTimestamp = null;
 
-    renderStats(stats, sourceLabel);
+    renderStats(currentProfile.stats, currentProfile.sourceLabel);
     const rec = buildRecommendation();
     currentRecommendation = rec;
     renderRecommendation(rec);
-    renderInfluence(influence, wsls);
+    renderInfluence(currentProfile.influence, currentProfile.wsls);
 
     if (currentMode === 'app') {
       if (window.innerWidth < 860) el('context-panel').classList.add('show');
@@ -1946,7 +1607,7 @@ window.loadProfile = async function() {
     const rp = el('record-panel');
     if (rp) rp.style.display = 'block';
 
-    setStatus('green', `${sourceLabel} · מוכן`);
+    setStatus('green', `${currentProfile.sourceLabel} · מוכן`);
     show('rec-card');
     show('stats-card');
     el('next-btn').classList.add('show');
@@ -1958,272 +1619,17 @@ window.loadProfile = async function() {
   }
 };
 
-function buildGlobalGames(allGames) {
-  // Count raw contributions per player
-  const perPlayer = {};
-  allGames.forEach(g => {
-    if (g.p1 && g.p1Choice) perPlayer[g.p1] = (perPlayer[g.p1] || 0) + 1;
-    if (g.p2 && g.p2Choice) perPlayer[g.p2] = (perPlayer[g.p2] || 0) + 1;
-  });
-  const uniquePlayers = Object.keys(perPlayer).length;
-  const totalRaw      = Object.values(perPlayer).reduce((s, n) => s + n, 0) || 1;
-
-  // Cap adapts to pool size: with few players allow more per player, with many allow less
-  // e.g. 2 players → 50%, 5 → 30%, 10+ → 20%
-  const MAX_PLAYER_SHARE = uniquePlayers <= 2 ? 0.50
-    : uniquePlayers <= 5  ? 0.30
-    : uniquePlayers <= 10 ? 0.25
-    : 0.20;
-
-  // Compute per-player weight cap
-  const playerWeight = {};
-  Object.entries(perPlayer).forEach(([p, n]) => {
-    const share = n / totalRaw;
-    playerWeight[p] = share > MAX_PLAYER_SHARE ? MAX_PLAYER_SHARE / share : 1.0;
-  });
-
-  const out = [];
-  allGames.forEach(g => {
-    if (g.p1Choice) out.push({ playerChoice: g.p1Choice, playerPos: g.p1ChoicePosition, playerColors: g.colors, timestamp: g.timestamp, prevOutcome: g.p1PrevOutcome, mode: g.mode, _playerW: playerWeight[g.p1] ?? 1 });
-    if (g.p2Choice) out.push({ playerChoice: g.p2Choice, playerPos: g.p2ChoicePosition, playerColors: g.colors, timestamp: g.timestamp, prevOutcome: g.p2PrevOutcome, mode: g.mode, _playerW: playerWeight[g.p2] ?? 1 });
-  });
-  return out;
-}
 
 // ════════════════════════════════════════════════
-// INFLUENCE COMPUTATION
-// ════════════════════════════════════════════════
-function computeInfluence(games, globalGames) {
-  const posInfluenceScore   = measurePositionInfluence(games);
-  const globalPosInfluence  = measurePositionInfluence(globalGames);
-  const hasPersonal = games !== globalGames;
-  const posWeight   = Math.min(hasPersonal ? 0.5*posInfluenceScore + 0.5*globalPosInfluence : globalPosInfluence, 0.25);
-
-  const colorInfluenceScore  = measureColorInfluence(games);
-  const globalColorInfluence = measureColorInfluence(globalGames);
-  const colorWeight = Math.min(hasPersonal ? 0.5*colorInfluenceScore + 0.5*globalColorInfluence : globalColorInfluence, 0.20);
-
-  return { posWeight, colorWeight };
-}
-
-function measurePositionInfluence(games) {
-  const choices = ['rock','paper','scissors'];
-  const wSum    = g => g.w ?? 1;
-  const total   = games.reduce((s,g) => s + wSum(g), 0) || 1;
-  const base    = {};
-  choices.forEach(c => base[c] = games.reduce((s,g) => s + (g.playerChoice===c ? wSum(g) : 0), 0) / total);
-  let totalDev = 0, count = 0;
-  ['left','center','right'].forEach(pos => {
-    const pg   = games.filter(g => g.playerPos === pos);
-    const pgW  = pg.reduce((s,g) => s + wSum(g), 0);
-    if (pgW < 2) return;
-    choices.forEach(c => { totalDev += Math.abs(pg.reduce((s,g) => s+(g.playerChoice===c?wSum(g):0),0)/pgW - base[c]); count++; });
-  });
-  return count > 0 ? totalDev/count : 0;
-}
-
-function measureColorInfluence(games) {
-  const gwc   = games.filter(g => g.playerColors && g.playerChoice);
-  const wSum  = g => g.w ?? 1;
-  const total = gwc.reduce((s,g) => s + wSum(g), 0);
-  if (total < 4) return 0;
-  const choices = ['rock','paper','scissors'];
-  const base    = {};
-  choices.forEach(c => base[c] = gwc.reduce((s,g) => s+(g.playerChoice===c?wSum(g):0),0)/total);
-  let totalDev = 0, bCount = 0;
-  ['warm','cool','neutral'].forEach(bucket => {
-    const bg  = gwc.filter(g => hexToHueBucket(g.playerColors?.[g.playerChoice])===bucket);
-    const bgW = bg.reduce((s,g) => s + wSum(g), 0);
-    if (bgW < 2) return;
-    choices.forEach(c => { totalDev += Math.abs(bg.reduce((s,g)=>s+(g.playerChoice===c?wSum(g):0),0)/bgW - base[c]); bCount++; });
-  });
-  return bCount > 0 ? totalDev/bCount : 0;
-}
-
-// ════════════════════════════════════════════════
-// COMPUTE STATS
-// ════════════════════════════════════════════════
-function computeStats(games) {
-  const counts = { rock:0, paper:0, scissors:0 };
-  const posCounts = { rock:{}, paper:{}, scissors:{} };
-  const colorCounts = { rock:{}, paper:{}, scissors:{} };
-  games.forEach(g => {
-    const c = g.playerChoice;
-    if (counts[c] === undefined) return;
-    const w = g.w ?? 1;
-    counts[c] += w;
-    const pos = g.playerPos || 'unknown';
-    posCounts[c][pos] = (posCounts[c][pos]||0) + w;
-    if (g.playerColors) { const b = hexToHueBucket(g.playerColors[c]); colorCounts[c][b] = (colorCounts[c][b]||0)+w; }
-  });
-  const total = counts.rock + counts.paper + counts.scissors;
-  const pcts  = {};
-  ['rock','paper','scissors'].forEach(c => pcts[c] = total>0 ? counts[c]/total : 1/3);
-  return { counts, pcts, total, posCounts, colorCounts };
-}
-
-function hexToHueBucket(hex) {
-  if (!hex) return 'unknown';
-  try {
-    const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
-    const max=Math.max(r,g,b), min=Math.min(r,g,b), d=max-min;
-    if (!d) return 'neutral';
-    let h = max===r?((g-b)/d+(g<b?6:0))/6:max===g?((b-r)/d+2)/6:((r-g)/d+4)/6;
-    h = Math.round(h*360);
-    return (h<60||h>300)?'warm':'cool';
-  } catch(e){ return 'unknown'; }
-}
-
-// ════════════════════════════════════════════════
-// BUILD RECOMMENDATION
-// Combines: base stats + position + color + win-stay/lose-shift
+// BUILD RECOMMENDATION — wrapper around rps-engine.js
 // ════════════════════════════════════════════════
 function buildRecommendation() {
   if (!currentProfile) return null;
-  const { stats, influence, wsls, halfLife, lastRound } = currentProfile;
-  const choices = ['rock','paper','scissors'];
-
-  // 1. Base probabilities
-  const baseProb = { ...stats.pcts };
-  const bTotal = baseProb.rock + baseProb.paper + baseProb.scissors;
-  choices.forEach(c => baseProb[c] /= bTotal);
-  let adjProb = { ...baseProb };
-
-  // 2. Position adjustment
-  if (ctxPositions && influence) {
-    const pw = influence.posWeight;
-    choices.forEach(c => {
-      const pos = Object.entries(ctxPositions).find(([p,ch]) => ch===c)?.[0];
-      if (!pos) return;
-      const pg = (currentProfile.games||[]).filter(g => g.playerPos===pos);
-      if (pg.length < 3) return;
-      const histRate = pg.filter(g => g.playerChoice===c).length / pg.length;
-      adjProb[c] = adjProb[c]*(1-pw) + histRate*pw;
-    });
-  }
-
-  // 3. Color adjustment
-  if (ctxColors && influence) {
-    const cw = influence.colorWeight;
-    choices.forEach(c => {
-      const hex    = ctxColors[c];
-      const bucket = hexToHueBucket(hex);
-      const allCG  = (currentProfile.games||[]).filter(g => g.playerChoice===c);
-      if (allCG.length < 3) return;
-      const cg = allCG.filter(g => hexToHueBucket(g.playerColors?.[c])===bucket);
-      const colorAttraction = cg.length / Math.max(allCG.length,1);
-      adjProb[c] = adjProb[c]*(1-cw) + adjProb[c]*colorAttraction*cw;
-    });
-  }
-
-  // 4. Shared temporal decay (used by all time-sensitive signals)
-  const elapsed = lastRound ? Math.max(Date.now() - (lastRound.timestamp || Date.now()), 0) : 0;
-  const decay   = lastRound ? (elapsed > 0 ? computeDecay(elapsed, halfLife) : 1) : 0;
-
-  const reasonLines = [];
-  let wsEffect = 0, lsEffect = 0;
-
-  // 5. Win-stay / Lose-shift
-  if (lastRound && wsls && decay > 0.05) {
-    const { wsWeight, lsWeight } = wsls;
-    if (lastRound.outcome === 'win' && wsWeight > 0.01 && lastRound.oppChoice) {
-      const effectiveW = wsWeight * decay;
-      choices.forEach(c => {
-        if (c === lastRound.oppChoice) adjProb[c] = adjProb[c]*(1-effectiveW) + effectiveW;
-        else                           adjProb[c] = adjProb[c]*(1-effectiveW);
-      });
-      wsEffect = Math.round(effectiveW * 100);
-      reasonLines.push(`🏆 win-stay: יחזור ל${HEB[lastRound.oppChoice]} (${wsEffect}% × ${Math.round(decay*100)}% זיכרון)`);
-    } else if (lastRound.outcome === 'loss' && lsWeight > 0.01 && lastRound.oppChoice) {
-      const shifted    = BEATEN_BY[BEATEN_BY[lastRound.oppChoice]];
-      const effectiveL = lsWeight * decay;
-      choices.forEach(c => {
-        if (c === shifted) adjProb[c] = adjProb[c]*(1-effectiveL) + effectiveL;
-        else               adjProb[c] = adjProb[c]*(1-effectiveL);
-      });
-      lsEffect = Math.round(effectiveL * 100);
-      reasonLines.push(`💔 lose-shift: יעבור ל${HEB[shifted]} (${lsEffect}% × ${Math.round(decay*100)}% זיכרון)`);
-    }
-  }
-
-  // 6. Transition Bias: what does this player pick after (prevChoice × outcome)?
-  const transBias = currentProfile.transBias;
-  if (transBias?.weight > 0.01 && lastRound?.oppChoice && decay > 0.05) {
-    // Opponent's previous outcome is the inverse of ours
-    const oppPrevOut = lastRound.outcome === 'win' ? 'loss' : lastRound.outcome === 'loss' ? 'win' : 'tie';
-    const trans      = transBias.probs?.[lastRound.oppChoice]?.[oppPrevOut];
-    if (trans) {
-      const effectiveW = transBias.weight * decay;
-      choices.forEach(c => { adjProb[c] = adjProb[c]*(1-effectiveW) + trans[c]*effectiveW; });
-      const topT = choices.reduce((a,b) => trans[a]>trans[b] ? a : b);
-      reasonLines.push(`🔀 מעבר: ${HEB[lastRound.oppChoice]}+${oppPrevOut==='loss'?'הפסד':oppPrevOut==='win'?'ניצחון':'תיקו'} → ${HEB[topT]} (${Math.round(trans[topT]*100)}% · ${Math.round(decay*100)}% זיכרון)`);
-    }
-  }
-
-  // 7. Post-Tie Bias: what does this player pick after a tie?
-  const postTie = currentProfile.postTie;
-  if (postTie?.probs && postTie.weight > 0.01 && lastRound?.outcome === 'tie' && decay > 0.05) {
-    const effectiveW = postTie.weight * decay;
-    choices.forEach(c => { adjProb[c] = adjProb[c]*(1-effectiveW) + postTie.probs[c]*effectiveW; });
-    const topTie = choices.reduce((a,b) => postTie.probs[a]>postTie.probs[b] ? a : b);
-    reasonLines.push(`🤝 אחרי תיקו: נוטה ל${HEB[topTie]} (${Math.round(postTie.probs[topTie]*100)}%)`);
-  }
-
-  // 8. Opening Bias: new opponents lean toward rock globally
-  const openingBias = currentProfile.openingBias;
-  if (openingBias?.weight > 0.01) {
-    const ow = openingBias.weight;
-    adjProb.rock = adjProb.rock*(1-ow) + (1/3 + openingBias.rockBias)*ow;
-    reasonLines.push(`🎯 פתיחה: שחקן חדש — נטייה לאבן (${currentProfile.personalGames.length}/${openingBias.cutoff} משחקים)`);
-  }
-
-  // 9. Streak Avoidance: same choice twice in a row → lower 3rd occurrence significantly
-  const streakAvoid = currentProfile.streakAvoid;
-  if (streakAvoid && sessionHistory.length >= 2) {
-    const sLast = sessionHistory[sessionHistory.length-1];
-    const sPrev = sessionHistory[sessionHistory.length-2];
-    if (sLast.oppChoice && sLast.oppChoice === sPrev.oppChoice) {
-      const streakDecay = computeDecay(Date.now() - sLast.timestamp, halfLife);
-      const effectiveW  = streakAvoid.avoidWeight * streakDecay;
-      if (effectiveW > 0.01) {
-        adjProb[sLast.oppChoice] *= Math.max(1 - effectiveW, 0);
-        reasonLines.push(`⚡ רצף: ${HEB[sLast.oppChoice]} פעמיים ← לא יחזור (${Math.round(effectiveW*100)}%)`);
-      }
-    }
-  }
-
-  // 10. Mirroring: after losing, opponent might copy the choice that beat them
-  const mirrorBias = currentProfile.mirrorBias;
-  if (mirrorBias?.weight > 0.01 && lastRound?.outcome === 'win' && lastRound.oppChoice && decay > 0.05) {
-    const mirrorTarget = BEATS[lastRound.oppChoice]; // what beat them last round
-    const effectiveW   = mirrorBias.weight * decay;
-    choices.forEach(c => {
-      if (c === mirrorTarget) adjProb[c] = adjProb[c]*(1-effectiveW) + effectiveW;
-      else                    adjProb[c] = adjProb[c]*(1-effectiveW);
-    });
-    reasonLines.push(`🪞 מראה: אחרי הפסד, יחקה ${HEB[mirrorTarget]} (${Math.round(effectiveW*100)}% × ${Math.round(decay*100)}% זיכרון)`);
-  }
-
-  // 11. Normalize
-  const adjTotal = adjProb.rock + adjProb.paper + adjProb.scissors;
-  choices.forEach(c => adjProb[c] /= adjTotal);
-
-  // 12. Find best prediction & what beats it
-  const mostLikely = choices.reduce((a,b) => adjProb[a]>adjProb[b] ? a : b);
-  const beat        = BEATS[mostLikely];
-  const confidence  = Math.round(adjProb[mostLikely]*100);
-
-  // 13. Build reason text
-  const lines = [];
-  lines.push(`${currentProfile.name||'היריב'} בוחר ${HEB[mostLikely]} ${Math.round(baseProb[mostLikely]*100)}% בסיס`);
-  if (influence?.posWeight > 0.01 && Object.values(ctxPositions).some(Boolean))
-    lines.push(`📍 מיקום: ${Math.round(influence.posWeight*100)}%`);
-  if (influence?.colorWeight > 0.01 && ctxColors)
-    lines.push(`🎨 צבע: ${Math.round(influence.colorWeight*100)}%`);
-  lines.push(...reasonLines);
-  lines.push(`→ שחק ${HEB[beat]}`);
-
-  return { beat, mostLikely, confidence, reason: lines.join('\n'), adjProb, wsEffect, lsEffect };
+  return RPSEngine.buildRecommendation(currentProfile, {
+    positions:      ctxPositions,
+    colors:         ctxColors,
+    sessionHistory: sessionHistory,
+  });
 }
 
 // ════════════════════════════════════════════════

@@ -50,6 +50,7 @@ body::after {
   padding: 12px 20px;
   display: flex; align-items: center; gap: 14px;
 }
+.nav > div { flex: 1; }
 .nav-icon { font-size:1.4rem; filter: drop-shadow(0 0 6px var(--green)); }
 .nav-title {
   font-family: 'IBM Plex Mono', monospace;
@@ -330,12 +331,13 @@ body::after {
 
 <!-- NAV -->
 <nav class="nav">
+  <a href="/" class="nav-back">← משחק</a>
   <div class="nav-icon">📊</div>
   <div>
     <div class="nav-title">סטטיסטיקות RPS</div>
     <div class="nav-sub">ANALYTICS DASHBOARD</div>
   </div>
-  <a href="cheat/" class="nav-back">← רמאות</a>
+  <a href="/cheat/" class="nav-back">רמאות →</a>
 </nav>
 
 <!-- FILTER BAR -->
@@ -361,6 +363,7 @@ body::after {
 
 <div class="toast" id="toast"></div>
 
+<script src="/rps-engine.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
 import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js";
@@ -378,11 +381,9 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db  = getDatabase(app);
 
-const EMOJI   = { rock:'✊', paper:'📄', scissors:'✂️' };
-const HEB     = { rock:'אבן', paper:'נייר', scissors:'מספריים' };
-const BEATS   = { rock:'paper', paper:'scissors', scissors:'rock' };
-const BEATEN  = { rock:'scissors', paper:'rock', scissors:'paper' };
-const CHOICES = ['rock','paper','scissors'];
+// ── מנוע החישוב המשותף ──
+const RPSEngine = window.RPSEngine;
+const { EMOJI, HEB, BEATS, BEATEN_BY: BEATEN, CHOICES } = RPSEngine;
 
 let allGames    = [];
 let allPlayers  = [];

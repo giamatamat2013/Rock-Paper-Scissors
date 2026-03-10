@@ -58,6 +58,33 @@
   .header {
     text-align: center;
     padding: 30px 0 20px;
+    position: relative;
+  }
+
+  .header-stats-link {
+    position: absolute;
+    top: 50%;
+    left: 16px;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0,255,136,0.08);
+    border: 1px solid rgba(0,255,136,0.3);
+    border-radius: 20px;
+    padding: 6px 14px;
+    color: var(--accent2);
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-decoration: none;
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 0.5px;
+    transition: all 0.2s;
+  }
+  .header-stats-link:hover {
+    background: rgba(0,255,136,0.16);
+    border-color: rgba(0,255,136,0.6);
+    color: var(--accent2);
   }
 
   .header h1 {
@@ -573,6 +600,7 @@
 <body>
 <div id="app">
   <div class="header">
+    <a href="/stats/" class="header-stats-link">📊 סטטיסטיקות</a>
     <h1>אבן נייר מספריים</h1>
     <div class="emoji-row">✊ 📄 ✂️</div>
   </div>
@@ -884,6 +912,7 @@
 
 <div id="toast" class="toast"></div>
 
+<script src="./rps-engine.js"></script>
 <script type="module">
 // ==================== FIREBASE ====================
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
@@ -1368,51 +1397,17 @@ window.setCpuMode = function(mode) {
 };
 
 // Compute what the CPU should play based on player's historical choices
+// ── CPU CHEAT: uses the same RPSEngine as cheat/index.html ──
 async function cheatCpuChoice(playerName) {
-  const BEATS = { rock: 'paper', paper: 'scissors', scissors: 'rock' };
   try {
     const snap = await get(ref(db, 'games'));
     if (!snap.exists()) return randomChoice();
 
-    const allGames = Object.values(snap.val()).filter(g => !g.cheated);
+    const allGamesRaw = Object.entries(snap.val()).map(([id, g]) => ({ id, ...g }));
+    const profile     = RPSEngine.buildProfile(allGamesRaw, playerName, 'local');
+    const rec         = RPSEngine.buildRecommendation(profile, {});
 
-    // Get games for this player
-    const playerGames = allGames.filter(g => g.p1 === playerName || g.p2 === playerName);
-    let counts = { rock: 0, paper: 0, scissors: 0 };
-
-    if (playerGames.length >= 3) {
-      // Use player's own data (weighted 75%)
-      const personalCounts = { rock: 0, paper: 0, scissors: 0 };
-      playerGames.forEach(g => {
-        const c = g.p1 === playerName ? g.p1Choice : g.p2Choice;
-        if (personalCounts[c] !== undefined) personalCounts[c]++;
-      });
-      // Also compute global
-      const globalCounts = { rock: 0, paper: 0, scissors: 0 };
-      allGames.forEach(g => {
-        if (globalCounts[g.p1Choice] !== undefined) globalCounts[g.p1Choice]++;
-        if (globalCounts[g.p2Choice] !== undefined) globalCounts[g.p2Choice]++;
-      });
-      const pTotal = playerGames.length || 1;
-      const gTotal = (globalCounts.rock + globalCounts.paper + globalCounts.scissors) || 1;
-      // Blend: 75% personal + 25% global
-      ['rock','paper','scissors'].forEach(c => {
-        counts[c] = 0.75 * (personalCounts[c] / pTotal) + 0.25 * (globalCounts[c] / gTotal);
-      });
-    } else {
-      // Not enough personal data – use global only
-      allGames.forEach(g => {
-        if (counts[g.p1Choice] !== undefined) counts[g.p1Choice]++;
-        if (counts[g.p2Choice] !== undefined) counts[g.p2Choice]++;
-      });
-      const total = counts.rock + counts.paper + counts.scissors || 1;
-      ['rock','paper','scissors'].forEach(c => counts[c] /= total);
-    }
-
-    // Pick opponent's most likely choice, then beat it
-    // Add some randomness: 75% pick the optimal counter, 25% random
-    const mostLikely = Object.entries(counts).sort((a,b) => b[1]-a[1])[0][0];
-    return Math.random() < 0.75 ? BEATS[mostLikely] : randomChoice();
+    return rec ? rec.beat : randomChoice();
   } catch(e) {
     console.warn('[cheat cpu]', e);
     return randomChoice();
@@ -2086,4 +2081,4 @@ function trackRoomJoin() {
 
 </script>
 </body>
-</html> 
+</html>
