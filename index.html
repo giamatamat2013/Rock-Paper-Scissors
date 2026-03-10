@@ -605,6 +605,12 @@
         <div class="autocomplete-list hidden" id="c-ac-list"></div>
       </div>
       <div class="field-error" id="c-name-err">נא להכניס שם</div>
+
+      <div style="display:flex;gap:8px;margin-top:14px;margin-bottom:2px;">
+        <button class="btn btn-primary" id="c-mode-normal" onclick="setCpuMode('normal')" style="flex:1;background:linear-gradient(135deg,var(--accent),#c9184a);">🎲 מחשב רגיל</button>
+        <button class="btn btn-secondary" id="c-mode-cheat" onclick="setCpuMode('cheat')" style="flex:1;">🧠 מחשב חכם</button>
+      </div>
+      <div id="c-cheat-hint" class="hidden" style="font-size:0.75rem;color:var(--accent3);margin-top:6px;text-align:center;">מחשב ישתמש בנתוני Firebase כדי לנצח אותך</div>
       <button class="btn btn-primary mt-12" style="width:100%" onclick="startComputerGame()">▶ התחל משחק</button>
     </div>
 
@@ -625,7 +631,7 @@
         <div class="vs-badge">VS</div>
         <div class="player-side">
           <div class="choice-display" id="c-cpu-display">❓</div>
-          <div class="player-name">מחשב</div>
+          <div class="player-name" id="c-cpu-label">מחשב</div>
         </div>
       </div>
 
@@ -900,6 +906,7 @@ let allPlayers = []; // cached from Firebase
 let cScore = { wins: 0, losses: 0, draws: 0 };
 let cPlayerName = null;
 let cpuPreChoice = null; // CPU decides BEFORE player clicks
+let cpuMode = 'normal'; // 'normal' | 'cheat'
 
 // Local state
 let lState = { phase: 'p1', p1Choice: null, p2Choice: null };
@@ -1297,6 +1304,10 @@ window.startComputerGame = function() {
   setDisplay(document.getElementById('c-cpu-display'), null, false);
   document.getElementById('c-name-setup').classList.add('hidden');
   document.getElementById('c-game').classList.remove('hidden');
+  // Show cheat badge on CPU label
+  const cpuLabel = document.getElementById('c-cpu-label');
+  cpuLabel.textContent = cpuMode === 'cheat' ? '🧠 מחשב חכם' : 'מחשב';
+  cpuLabel.style.color = cpuMode === 'cheat' ? 'var(--accent3)' : '';
   shuffleChoiceButtons('c-choices');
   preCpuChoice(); // CPU decides its first move before player sees the board
 };
@@ -1307,14 +1318,96 @@ window.resetComputerMode = function() {
   document.getElementById('c-name-input').value = '';
   cPlayerName = null;
   cpuPreChoice = null;
+  setCpuMode('normal');
 };
 
+
+// ==================== CPU CHEAT MODE ====================
+window.setCpuMode = function(mode) {
+  cpuMode = mode;
+  const normalBtn = document.getElementById('c-mode-normal');
+  const cheatBtn  = document.getElementById('c-mode-cheat');
+  const hint      = document.getElementById('c-cheat-hint');
+  if (mode === 'cheat') {
+    normalBtn.className = 'btn btn-secondary';
+    normalBtn.style.flex = '1';
+    cheatBtn.className = 'btn btn-primary';
+    cheatBtn.style.cssText = 'flex:1;background:linear-gradient(135deg,var(--accent3),#e6a800);color:#000;';
+    hint.classList.remove('hidden');
+  } else {
+    normalBtn.className = 'btn btn-primary';
+    normalBtn.style.cssText = 'flex:1;background:linear-gradient(135deg,var(--accent),#c9184a);';
+    cheatBtn.className = 'btn btn-secondary';
+    cheatBtn.style.cssText = 'flex:1;';
+    hint.classList.add('hidden');
+  }
+};
+
+// Compute what the CPU should play based on player's historical choices
+async function cheatCpuChoice(playerName) {
+  const BEATS = { rock: 'paper', paper: 'scissors', scissors: 'rock' };
+  try {
+    const snap = await get(ref(db, 'games'));
+    if (!snap.exists()) return randomChoice();
+
+    const allGames = Object.values(snap.val()).filter(g => !g.cheated);
+
+    // Get games for this player
+    const playerGames = allGames.filter(g => g.p1 === playerName || g.p2 === playerName);
+    let counts = { rock: 0, paper: 0, scissors: 0 };
+
+    if (playerGames.length >= 3) {
+      // Use player's own data (weighted 75%)
+      const personalCounts = { rock: 0, paper: 0, scissors: 0 };
+      playerGames.forEach(g => {
+        const c = g.p1 === playerName ? g.p1Choice : g.p2Choice;
+        if (personalCounts[c] !== undefined) personalCounts[c]++;
+      });
+      // Also compute global
+      const globalCounts = { rock: 0, paper: 0, scissors: 0 };
+      allGames.forEach(g => {
+        if (globalCounts[g.p1Choice] !== undefined) globalCounts[g.p1Choice]++;
+        if (globalCounts[g.p2Choice] !== undefined) globalCounts[g.p2Choice]++;
+      });
+      const pTotal = playerGames.length || 1;
+      const gTotal = (globalCounts.rock + globalCounts.paper + globalCounts.scissors) || 1;
+      // Blend: 75% personal + 25% global
+      ['rock','paper','scissors'].forEach(c => {
+        counts[c] = 0.75 * (personalCounts[c] / pTotal) + 0.25 * (globalCounts[c] / gTotal);
+      });
+    } else {
+      // Not enough personal data – use global only
+      allGames.forEach(g => {
+        if (counts[g.p1Choice] !== undefined) counts[g.p1Choice]++;
+        if (counts[g.p2Choice] !== undefined) counts[g.p2Choice]++;
+      });
+      const total = counts.rock + counts.paper + counts.scissors || 1;
+      ['rock','paper','scissors'].forEach(c => counts[c] /= total);
+    }
+
+    // Pick opponent's most likely choice, then beat it
+    // Add some randomness: 75% pick the optimal counter, 25% random
+    const mostLikely = Object.entries(counts).sort((a,b) => b[1]-a[1])[0][0];
+    return Math.random() < 0.75 ? BEATS[mostLikely] : randomChoice();
+  } catch(e) {
+    console.warn('[cheat cpu]', e);
+    return randomChoice();
+  }
+}
+
 function preCpuChoice() {
-  cpuPreChoice = randomChoice();
-  // Show a "thinking" animation on CPU side - it already decided but won't reveal
   const cpuEl = document.getElementById('c-cpu-display');
   cpuEl.textContent = '🤔';
   cpuEl.className = 'choice-display';
+
+  if (cpuMode === 'cheat' && cPlayerName) {
+    cpuPreChoice = null; // will be set async
+    cheatCpuChoice(cPlayerName).then(choice => {
+      cpuPreChoice = choice;
+    });
+  } else {
+    cpuPreChoice = randomChoice();
+  }
 }
 
 window.playComputer = function(choice) {
@@ -1359,6 +1452,7 @@ window.playComputer = function(choice) {
     result: r === 'draw' ? 'draw' : r === 'a' ? 'p1_win' : 'p2_win',
     winner: r === 'draw' ? null : r === 'a' ? cPlayerName : 'מחשב',
     p1ChoicePosition: choicePos,
+    cpuCheat: cpuMode === 'cheat',
     colors: { rock: sessionColors.rock.hex, paper: sessionColors.paper.hex, scissors: sessionColors.scissors.hex }
   });
 
