@@ -926,14 +926,14 @@
   <div class="setup-row">
     <div class="setup-label">שמי</div>
     <div class="input-wrap" id="my-name-wrap" style="flex:1">
-      <input type="text" class="name-input" id="my-name" placeholder="השם שלי *" autocomplete="off" oninput="onMyNameInput()" onkeydown="onMyNameKeydown(event)">
+      <input type="text" class="name-input" id="my-name" placeholder="השם שלי" autocomplete="off" oninput="onMyNameInput()" onkeydown="onMyNameKeydown(event)">
       <div class="ac-drop" id="my-ac-drop"></div>
     </div>
   </div>
   <div class="setup-row">
     <div class="setup-label">יריב</div>
     <div class="input-wrap" id="name-wrap" style="flex:1">
-      <input type="text" class="name-input" id="player-name" placeholder="שם היריב *" autocomplete="off" oninput="onNameInput()" onkeydown="onNameKeydown(event)" required>
+      <input type="text" class="name-input" id="player-name" placeholder="שם היריב" autocomplete="off" oninput="onNameInput()" onkeydown="onNameKeydown(event)">
       <div class="ac-drop" id="ac-drop"></div>
     </div>
   </div>
@@ -1298,8 +1298,6 @@ window.smartUpdate = function() {
   const name    = el('player-name').value.trim();
   const myName  = el('my-name').value.trim();
 
-  if (!name) { showToast('יש להזין שם יריב'); el('player-name').focus(); return; }
-  if (!myName) { showToast('יש להזין את השם שלך'); el('my-name').focus(); return; }
   if (name.toLowerCase() === 'unknown') { showToast('"unknown" אינו שם תקין'); el('player-name').value = ''; el('player-name').focus(); return; }
   if (myName.toLowerCase() === 'unknown') { showToast('"unknown" אינו שם תקין'); el('my-name').value = ''; el('my-name').focus(); return; }
 
@@ -1345,6 +1343,48 @@ function updateRoundApplyBtn() {
 function computeDecay(elapsedMs, halfLifeMs) {
   if (!elapsedMs || elapsedMs <= 0) return 1;
   return Math.pow(0.5, elapsedMs / halfLifeMs);
+}
+
+// ════════════════════════════════════════════════
+// RECENCY WEIGHTING
+// Each game gets a .w (0–1) based on age.
+// Half-life is learned from data: if a player's style drifts
+// quickly, recent games matter much more.
+// ════════════════════════════════════════════════
+function computeRecencyHalfLife(games) {
+  const DAY = 24 * 60 * 60 * 1000;
+  const DEFAULT = 30 * DAY;
+  const choices = ['rock','paper','scissors'];
+  const sorted  = games.filter(g => g.timestamp && choices.includes(g.playerChoice))
+    .sort((a,b) => a.timestamp - b.timestamp);
+  if (sorted.length < 10) return DEFAULT;
+
+  // Compare oldest quarter vs newest quarter distributions
+  const q       = Math.max(Math.floor(sorted.length / 4), 3);
+  const oldest  = sorted.slice(0, q);
+  const newest  = sorted.slice(-q);
+  const dist = seg => {
+    const d = {};
+    const t = seg.length;
+    choices.forEach(c => d[c] = seg.filter(g => g.playerChoice===c).length / t);
+    return d;
+  };
+  const od = dist(oldest), nd = dist(newest);
+  const drift = choices.reduce((s,c) => s + Math.abs(od[c] - nd[c]), 0) / 3;
+
+  // Map drift to half-life: more drift → shorter half-life
+  if (drift < 0.05) return 60 * DAY;   // very stable
+  if (drift < 0.10) return DEFAULT;     // moderate
+  if (drift < 0.18) return 15 * DAY;   // changing
+  return 7 * DAY;                       // volatile
+}
+
+function addRecencyWeights(games, recencyHalfLife) {
+  const now = Date.now();
+  return games.map(g => ({
+    ...g,
+    w: g.timestamp ? Math.max(computeDecay(now - g.timestamp, recencyHalfLife), 0.05) : 0.5
+  }));
 }
 
 // Compute the data-driven half-life: look at win-stay / lose-shift accuracy across games
@@ -1401,7 +1441,6 @@ function computeHalfLifeFromData(games) {
 
 // Compute win-stay / lose-shift weights from data
 function computeWinStayLoseShiftWeights(games) {
-  const choices = ['rock','paper','scissors'];
   let wsHits = 0, wsTotal = 0;
   let lsHits = 0, lsTotal = 0;
 
@@ -1413,24 +1452,22 @@ function computeWinStayLoseShiftWeights(games) {
     const g    = sorted[i];
     const prev = sorted[i-1];
     if (!prev.playerChoice) continue;
+    const w = g.w ?? 1;
 
     const outcome = g.prevOutcome;
     if (outcome === 'win') {
-      wsTotal++;
-      if (g.playerChoice === prev.playerChoice) wsHits++;
+      wsTotal += w;
+      if (g.playerChoice === prev.playerChoice) wsHits += w;
     } else if (outcome === 'loss') {
-      lsTotal++;
-      // Lose-shift: move to what beats the winner (i.e. what the opponent played beats them)
-      const shifted = BEATEN_BY[BEATEN_BY[prev.playerChoice]]; // what beats what beat you
-      if (g.playerChoice === shifted) lsHits++;
+      lsTotal += w;
+      const shifted = BEATEN_BY[BEATEN_BY[prev.playerChoice]];
+      if (g.playerChoice === shifted) lsHits += w;
     }
   }
 
-  const wsRate = wsTotal >= 3 ? wsHits / wsTotal : 0.4; // literature baseline ~40%
-  const lsRate = lsTotal >= 3 ? lsHits / lsTotal : 0.33;
+  const wsRate = wsTotal >= 2 ? wsHits / wsTotal : 0.4;
+  const lsRate = lsTotal >= 2 ? lsHits / lsTotal : 0.33;
 
-  // Weight = how much above random (33%) this strategy is
-  // Cap at 0.30 each so total max is ~60% of the recommendation
   const wsWeight = Math.min(Math.max((wsRate - 1/3) * 1.5, 0), 0.30);
   const lsWeight = Math.min(Math.max((lsRate - 1/3) * 1.5, 0), 0.30);
 
@@ -1459,26 +1496,25 @@ function computeTransitionBias(games) {
     if (!choices.includes(prev.playerChoice)) continue;
     const out = g.prevOutcome;
     if (!outcomes.includes(out)) continue;
-    trans[prev.playerChoice][out][g.playerChoice]++;
-    trans[prev.playerChoice][out].total++;
+    const w = g.w ?? 1;
+    trans[prev.playerChoice][out][g.playerChoice] += w;
+    trans[prev.playerChoice][out].total           += w;
   }
 
-  // Convert to probabilities (only if enough data per cell)
   const probs = {};
   choices.forEach(prev => {
     probs[prev] = {};
     outcomes.forEach(out => {
       const t = trans[prev][out];
-      probs[prev][out] = t.total >= 4 ? {
+      probs[prev][out] = t.total >= 3 ? {
         rock: t.rock/t.total, paper: t.paper/t.total, scissors: t.scissors/t.total, total: t.total
       } : null;
     });
   });
 
-  // Weight = avg deviation from base rates across all populated cells
   const overallBase = { rock:0, paper:0, scissors:0 };
   let tot = 0;
-  sorted.forEach(g => { if (choices.includes(g.playerChoice)) { overallBase[g.playerChoice]++; tot++; } });
+  sorted.forEach(g => { const w = g.w ?? 1; overallBase[g.playerChoice] += w; tot += w; });
   if (tot > 0) choices.forEach(c => overallBase[c] /= tot);
 
   let totalDev = 0, cnt = 0;
@@ -1506,12 +1542,13 @@ function computePostTieBias(games) {
 
   for (let i = 1; i < sorted.length; i++) {
     if (sorted[i].prevOutcome === 'tie') {
-      counts[sorted[i].playerChoice]++;
-      counts.total++;
+      const w = sorted[i].w ?? 1;
+      counts[sorted[i].playerChoice] += w;
+      counts.total += w;
     }
   }
 
-  if (counts.total < 4) return { probs: null, weight: 0 };
+  if (counts.total < 3) return { probs: null, weight: 0 };
 
   const probs = {};
   let totalDev = 0;
@@ -1556,13 +1593,13 @@ function computeStreakAvoidance(games) {
   let opportunities = 0, repeats = 0;
   for (let i = 2; i < sorted.length; i++) {
     if (sorted[i-1].playerChoice === sorted[i-2].playerChoice) {
-      opportunities++;
-      if (sorted[i].playerChoice === sorted[i-1].playerChoice) repeats++;
+      const w = sorted[i].w ?? 1;
+      opportunities += w;
+      if (sorted[i].playerChoice === sorted[i-1].playerChoice) repeats += w;
     }
   }
 
-  // Default from research: ~12% repeat rate after 2-in-a-row (vs 33% base)
-  if (opportunities < 5) return { repeatRate: 0.12, avoidWeight: 0.25 };
+  if (opportunities < 3) return { repeatRate: 0.12, avoidWeight: 0.25 };
 
   const repeatRate  = repeats / opportunities;
   const avoidWeight = Math.min(Math.max((1/3 - repeatRate) * 1.8, 0), 0.40);
@@ -1583,12 +1620,12 @@ function computeMirrorRate(games) {
   for (let i = 1; i < sorted.length; i++) {
     const g = sorted[i], prev = sorted[i-1];
     if (g.prevOutcome !== 'loss') continue;
-    total++;
-    // What beat them last round = BEATS[prev.playerChoice]
-    if (g.playerChoice === BEATS[prev.playerChoice]) hits++;
+    const w = g.w ?? 1;
+    total += w;
+    if (g.playerChoice === BEATS[prev.playerChoice]) hits += w;
   }
 
-  if (total < 5) return { mirrorRate: 0, weight: 0 };
+  if (total < 3) return { mirrorRate: 0, weight: 0 };
 
   const mirrorRate = hits / total;
   const weight     = Math.min(Math.max((mirrorRate - 1/3) * 2, 0), 0.30);
@@ -1812,9 +1849,9 @@ window.onColorChange = function(choice, hex) {
 // ════════════════════════════════════════════════
 window.loadProfile = async function() {
   const rawName = el('player-name').value.trim();
-  if (!rawName) { showToast('יש להזין שם יריב'); return; }
   if (rawName.toLowerCase() === 'unknown') { showToast('"unknown" אינו שם תקין'); el('player-name').value = ''; return; }
-  const name = rawName;
+  const name = rawName || null; // null = all players (global stats)
+  if (rawName.toLowerCase() === 'null') { showToast('"null" אינו שם תקין'); el('player-name').value = ''; return; }
   // Only reset session history when switching to a different opponent
   const isNewOpponent = !currentProfile || currentProfile.name !== name;
   if (isNewOpponent) sessionHistory = [];
@@ -1838,7 +1875,7 @@ window.loadProfile = async function() {
 
     let personalGames = [], relevantGames, sourceLabel;
 
-    personalGames = allGames.filter(g => g.p1 === name || g.p2 === name)
+    personalGames = name ? allGames.filter(g => g.p1 === name || g.p2 === name)
       .map(g => ({
         ...g,
         playerChoice: g.p1===name ? g.p1Choice : g.p2Choice,
@@ -1846,27 +1883,32 @@ window.loadProfile = async function() {
         playerColors: g.colors,
         prevOutcome:  g.p1===name ? g.p1PrevOutcome : g.p2PrevOutcome
       }))
-      .sort((a,b) => (a.timestamp||0) - (b.timestamp||0));
+      .sort((a,b) => (a.timestamp||0) - (b.timestamp||0)) : [];
 
     if (personalGames.length >= 3) {
       relevantGames = personalGames;
       sourceLabel   = `${name} (${personalGames.length} משחקים)`;
     } else {
       relevantGames = buildGlobalGames(allGames);
-      sourceLabel   = `כלל המשתמשים (אין מספיק נתונים על ${name})`;
+      sourceLabel   = name
+        ? `כלל המשתמשים (אין מספיק נתונים על ${name})`
+        : `כלל המשתמשים`;
     }
 
-    const globalGames = buildGlobalGames(allGames);
-    const gamesForSignals = personalGames.length >= 3 ? personalGames : globalGames;
-    const influence   = computeInfluence(gamesForSignals, globalGames);
+    const globalGames      = buildGlobalGames(allGames);
+    const recencyHL        = computeRecencyHalfLife(personalGames.length >= 3 ? personalGames : globalGames);
+    const weightedPersonal = addRecencyWeights(personalGames, recencyHL);
+    const weightedGlobal   = addRecencyWeights(globalGames,   recencyHL);
+    const gamesForSignals  = personalGames.length >= 3 ? weightedPersonal : weightedGlobal;
+    const influence   = computeInfluence(gamesForSignals, weightedGlobal);
     const wsls        = computeWinStayLoseShiftWeights(gamesForSignals);
     const halfLife    = computeHalfLifeFromData(gamesForSignals);
     const transBias   = computeTransitionBias(gamesForSignals);
     const postTie     = computePostTieBias(gamesForSignals);
-    const openingBias = computeOpeningBias(personalGames.length, globalGames);
+    const openingBias = computeOpeningBias(personalGames.length, weightedGlobal);
     const streakAvoid = computeStreakAvoidance(gamesForSignals);
     const mirrorBias  = computeMirrorRate(gamesForSignals);
-    const stats       = computeStats(relevantGames);
+    const stats       = computeStats(personalGames.length >= 3 ? weightedPersonal : weightedGlobal);
 
     currentProfile = { name, games: relevantGames, personalGames, allGames, stats, sourceLabel,
       influence, wsls, halfLife, transBias, postTie, openingBias, streakAvoid, mirrorBias };
@@ -1933,30 +1975,34 @@ function computeInfluence(games, globalGames) {
 
 function measurePositionInfluence(games) {
   const choices = ['rock','paper','scissors'];
-  const total   = games.length || 1;
+  const wSum    = g => g.w ?? 1;
+  const total   = games.reduce((s,g) => s + wSum(g), 0) || 1;
   const base    = {};
-  choices.forEach(c => base[c] = games.filter(g => g.playerChoice===c).length / total);
+  choices.forEach(c => base[c] = games.reduce((s,g) => s + (g.playerChoice===c ? wSum(g) : 0), 0) / total);
   let totalDev = 0, count = 0;
   ['left','center','right'].forEach(pos => {
-    const pg = games.filter(g => g.playerPos === pos);
-    if (pg.length < 3) return;
-    choices.forEach(c => { totalDev += Math.abs(pg.filter(g => g.playerChoice===c).length/pg.length - base[c]); count++; });
+    const pg   = games.filter(g => g.playerPos === pos);
+    const pgW  = pg.reduce((s,g) => s + wSum(g), 0);
+    if (pgW < 2) return;
+    choices.forEach(c => { totalDev += Math.abs(pg.reduce((s,g) => s+(g.playerChoice===c?wSum(g):0),0)/pgW - base[c]); count++; });
   });
   return count > 0 ? totalDev/count : 0;
 }
 
 function measureColorInfluence(games) {
-  const gwc = games.filter(g => g.playerColors && g.playerChoice);
-  if (gwc.length < 6) return 0;
+  const gwc   = games.filter(g => g.playerColors && g.playerChoice);
+  const wSum  = g => g.w ?? 1;
+  const total = gwc.reduce((s,g) => s + wSum(g), 0);
+  if (total < 4) return 0;
   const choices = ['rock','paper','scissors'];
-  const total   = gwc.length;
   const base    = {};
-  choices.forEach(c => base[c] = gwc.filter(g => g.playerChoice===c).length/total);
+  choices.forEach(c => base[c] = gwc.reduce((s,g) => s+(g.playerChoice===c?wSum(g):0),0)/total);
   let totalDev = 0, bCount = 0;
   ['warm','cool','neutral'].forEach(bucket => {
-    const bg = gwc.filter(g => hexToHueBucket(g.playerColors?.[g.playerChoice])===bucket);
-    if (bg.length < 3) return;
-    choices.forEach(c => { totalDev += Math.abs(bg.filter(g=>g.playerChoice===c).length/bg.length - base[c]); bCount++; });
+    const bg  = gwc.filter(g => hexToHueBucket(g.playerColors?.[g.playerChoice])===bucket);
+    const bgW = bg.reduce((s,g) => s + wSum(g), 0);
+    if (bgW < 2) return;
+    choices.forEach(c => { totalDev += Math.abs(bg.reduce((s,g)=>s+(g.playerChoice===c?wSum(g):0),0)/bgW - base[c]); bCount++; });
   });
   return bCount > 0 ? totalDev/bCount : 0;
 }
@@ -1971,10 +2017,11 @@ function computeStats(games) {
   games.forEach(g => {
     const c = g.playerChoice;
     if (counts[c] === undefined) return;
-    counts[c]++;
+    const w = g.w ?? 1;
+    counts[c] += w;
     const pos = g.playerPos || 'unknown';
-    posCounts[c][pos] = (posCounts[c][pos]||0) + 1;
-    if (g.playerColors) { const b = hexToHueBucket(g.playerColors[c]); colorCounts[c][b] = (colorCounts[c][b]||0)+1; }
+    posCounts[c][pos] = (posCounts[c][pos]||0) + w;
+    if (g.playerColors) { const b = hexToHueBucket(g.playerColors[c]); colorCounts[c][b] = (colorCounts[c][b]||0)+w; }
   });
   const total = counts.rock + counts.paper + counts.scissors;
   const pcts  = {};
@@ -2168,11 +2215,9 @@ function updateSaveBtn() {
 window.saveRoundAndNext = async function() {
   if (!myActualChoice || !oppActualChoice) return;
 
-  const myName  = el('my-name').value.trim();
-  const oppName = el('player-name').value.trim();
+  const myName  = el('my-name').value.trim()   || 'unknown';
+  const oppName = el('player-name').value.trim() || 'unknown';
 
-  if (!myName)  { showToast('מלא את השם שלך כדי לשמור'); return; }
-  if (!oppName) { showToast('יש להזין שם יריב'); return; }
   if (myName.toLowerCase()  === 'unknown') { showToast('"unknown" אינו שם תקין'); return; }
   if (oppName.toLowerCase() === 'unknown') { showToast('"unknown" אינו שם תקין'); return; }
 
