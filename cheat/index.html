@@ -909,7 +909,7 @@
 <div class="header">
   <div class="header-icon">🃏</div>
   <div>
-    <div style="font-family:'IBM Plex Mono',monospace;font-size:1rem;font-weight:700;color:var(--green);letter-spacing:2px;">רמאות RPS</div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:1rem;font-weight:700;color:var(--green);letter-spacing:2px;">רמאות אבן נייר ומספריים</div>
     <div class="sub">CHEAT ENGINE v2</div>
   </div>
 </div>
@@ -1229,6 +1229,9 @@ window.setMode = function(mode) {
     if (currentRecommendation) panel.classList.add('show');
     else panel.classList.remove('show');
   }
+
+  // Recompute weights with new mode if profile already loaded
+  if (currentProfile) loadProfile();
 };
 
 // ── AUTOCOMPLETE ──
@@ -1379,12 +1382,19 @@ function computeRecencyHalfLife(games) {
   return 7 * DAY;                       // volatile
 }
 
-function addRecencyWeights(games, recencyHalfLife) {
+function addRecencyWeights(games, recencyHalfLife, activeMode) {
   const now = Date.now();
-  return games.map(g => ({
-    ...g,
-    w: g.timestamp ? Math.max(computeDecay(now - g.timestamp, recencyHalfLife), 0.05) : 0.5
-  }));
+  // mode multiplier: matching mode gets 2x, mismatching gets 0.5x, unknown gets 1x
+  const modeMatch    = activeMode === 'app'      ? 'online' : 'local';
+  const modeMismatch = activeMode === 'app'      ? 'local'  : 'online';
+  return games.map(g => {
+    const recency = g.timestamp ? Math.max(computeDecay(now - g.timestamp, recencyHalfLife), 0.05) : 0.5;
+    const modeMult = activeMode
+      ? (g.mode === modeMatch ? 2.0 : g.mode === modeMismatch ? 0.5 : 1.0)
+      : 1.0;
+    const playerMult = g._playerW ?? 1;
+    return { ...g, w: recency * modeMult * playerMult };
+  });
 }
 
 // Compute the data-driven half-life: look at win-stay / lose-shift accuracy across games
@@ -1897,8 +1907,8 @@ window.loadProfile = async function() {
 
     const globalGames      = buildGlobalGames(allGames);
     const recencyHL        = computeRecencyHalfLife(personalGames.length >= 3 ? personalGames : globalGames);
-    const weightedPersonal = addRecencyWeights(personalGames, recencyHL);
-    const weightedGlobal   = addRecencyWeights(globalGames,   recencyHL);
+    const weightedPersonal = addRecencyWeights(personalGames, recencyHL, currentMode);
+    const weightedGlobal   = addRecencyWeights(globalGames,   recencyHL, currentMode);
     const gamesForSignals  = personalGames.length >= 3 ? weightedPersonal : weightedGlobal;
     const influence   = computeInfluence(gamesForSignals, weightedGlobal);
     const wsls        = computeWinStayLoseShiftWeights(gamesForSignals);
@@ -1949,10 +1959,33 @@ window.loadProfile = async function() {
 };
 
 function buildGlobalGames(allGames) {
+  // Count raw contributions per player
+  const perPlayer = {};
+  allGames.forEach(g => {
+    if (g.p1 && g.p1Choice) perPlayer[g.p1] = (perPlayer[g.p1] || 0) + 1;
+    if (g.p2 && g.p2Choice) perPlayer[g.p2] = (perPlayer[g.p2] || 0) + 1;
+  });
+  const uniquePlayers = Object.keys(perPlayer).length;
+  const totalRaw      = Object.values(perPlayer).reduce((s, n) => s + n, 0) || 1;
+
+  // Cap adapts to pool size: with few players allow more per player, with many allow less
+  // e.g. 2 players → 50%, 5 → 30%, 10+ → 20%
+  const MAX_PLAYER_SHARE = uniquePlayers <= 2 ? 0.50
+    : uniquePlayers <= 5  ? 0.30
+    : uniquePlayers <= 10 ? 0.25
+    : 0.20;
+
+  // Compute per-player weight cap
+  const playerWeight = {};
+  Object.entries(perPlayer).forEach(([p, n]) => {
+    const share = n / totalRaw;
+    playerWeight[p] = share > MAX_PLAYER_SHARE ? MAX_PLAYER_SHARE / share : 1.0;
+  });
+
   const out = [];
   allGames.forEach(g => {
-    if (g.p1Choice) out.push({ playerChoice: g.p1Choice, playerPos: g.p1ChoicePosition, playerColors: g.colors, timestamp: g.timestamp, prevOutcome: g.p1PrevOutcome });
-    if (g.p2Choice) out.push({ playerChoice: g.p2Choice, playerPos: g.p2ChoicePosition, playerColors: g.colors, timestamp: g.timestamp, prevOutcome: g.p2PrevOutcome });
+    if (g.p1Choice) out.push({ playerChoice: g.p1Choice, playerPos: g.p1ChoicePosition, playerColors: g.colors, timestamp: g.timestamp, prevOutcome: g.p1PrevOutcome, mode: g.mode, _playerW: playerWeight[g.p1] ?? 1 });
+    if (g.p2Choice) out.push({ playerChoice: g.p2Choice, playerPos: g.p2ChoicePosition, playerColors: g.colors, timestamp: g.timestamp, prevOutcome: g.p2PrevOutcome, mode: g.mode, _playerW: playerWeight[g.p2] ?? 1 });
   });
   return out;
 }
