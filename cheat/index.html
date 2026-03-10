@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>🃏 RPS Cheat</title>
+<title>רמאות אבן נייר ומספריים</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=Heebo:wght@400;700;900&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -30,9 +30,91 @@
     min-height: 100dvh;
     display: flex;
     flex-direction: column;
+    padding: 0 0 env(safe-area-inset-bottom);
+  }
+
+  /* ── DESKTOP WRAPPER ── */
+  .page-wrap {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
     max-width: 480px;
     margin: 0 auto;
-    padding: 0 0 env(safe-area-inset-bottom);
+    width: 100%;
+  }
+
+  @media (min-width: 900px) {
+    body {
+      background: var(--bg);
+      align-items: stretch;
+    }
+
+    .desktop-layout {
+      display: flex;
+      flex: 1;
+      min-height: 100dvh;
+    }
+
+    /* Left column: setup + context panel */
+    .col-left {
+      width: 360px;
+      flex-shrink: 0;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+      position: sticky;
+      top: 0;
+      height: 100dvh;
+      overflow-y: auto;
+    }
+
+    .col-left .page-wrap {
+      max-width: 100%;
+      width: 100%;
+    }
+
+    /* Right column: main content */
+    .col-right {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      min-height: 100dvh;
+    }
+
+    .col-right .page-wrap {
+      max-width: 600px;
+      width: 100%;
+    }
+
+    /* On desktop, context panel is always visible in sidebar (not hidden) */
+    .context-panel {
+      display: block !important;
+      border: none;
+      border-top: 1px solid var(--border);
+      border-radius: 0;
+      flex: 1;
+    }
+
+    /* Next btn inside right col */
+    .main {
+      flex: 1;
+    }
+  }
+
+  @media (max-width: 899px) {
+    .desktop-layout { display: contents; }
+    .col-left { display: contents; }
+    .col-right { display: contents; }
+    .page-wrap {
+      max-width: 480px;
+      margin: 0 auto;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
   }
 
   /* Scanline overlay */
@@ -519,15 +601,191 @@
   }
 
   .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* ── CONTEXT PANEL ── */
+  .context-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    display: none;
+  }
+  .context-panel.show { display: block; }
+
+  .ctx-header {
+    padding: 10px 16px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .ctx-hint { font-size: 0.6rem; color: var(--dim); opacity: 0.6; }
+
+  .ctx-body { padding: 12px 16px; display: flex; flex-direction: column; gap: 12px; }
+
+  .ctx-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .ctx-row-label {
+    font-size: 0.7rem;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    width: 56px;
+    flex-shrink: 0;
+  }
+
+  /* Position drag row */
+  .pos-drag-row {
+    display: flex;
+    gap: 6px;
+    flex: 1;
+    align-items: center;
+  }
+
+  .pos-slot {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 4px 4px;
+    text-align: center;
+    cursor: pointer;
+    position: relative;
+    transition: border-color 0.15s;
+    min-height: 62px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    user-select: none;
+  }
+
+  .pos-slot.drag-over { border-color: var(--green); background: rgba(0,255,136,0.06); }
+  .pos-slot.has-choice { border-color: var(--dim); }
+
+  .pos-slot .slot-pos-name {
+    font-size: 0.55rem;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 3px;
+  }
+
+  .pos-slot .slot-emoji { font-size: 1.3rem; line-height: 1; }
+  .pos-slot .slot-name { font-size: 0.65rem; font-weight: 700; margin-top: 2px; }
+  .pos-slot .slot-name.rock { color: var(--rock-c); }
+  .pos-slot .slot-name.paper { color: var(--paper-c); }
+  .pos-slot .slot-name.scissors { color: var(--scissors-c); }
+
+  .pos-choice-pill {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+  }
+
+  .pos-slot-empty { opacity: 0.35; }
+
+  /* Color swatches */
+  .color-swatches {
+    display: flex;
+    gap: 6px;
+    flex: 1;
+  }
+
+  .color-swatch-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .color-swatch {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    cursor: pointer;
+    transition: transform 0.15s, border-color 0.15s;
+    position: relative;
+  }
+  .color-swatch:hover { transform: scale(1.1); }
+  .color-swatch input[type=color] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+    border-radius: 50%;
+  }
+
+  .swatch-label {
+    font-size: 0.62rem;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--dim);
+    text-align: center;
+  }
+
+  .ctx-apply-btn {
+    width: 100%;
+    background: rgba(0,255,136,0.07);
+    border: 1px solid rgba(0,255,136,0.25);
+    border-radius: 8px;
+    padding: 9px;
+    font-family: 'Heebo', sans-serif;
+    font-weight: 700;
+    font-size: 0.82rem;
+    color: var(--green);
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-top: 2px;
+  }
+  .ctx-apply-btn:hover { background: rgba(0,255,136,0.13); }
+  .ctx-apply-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  /* Influence badges */
+  .influence-row {
+    display: flex;
+    gap: 6px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    background: rgba(0,0,0,0.2);
+  }
+  .inf-badge {
+    flex: 1;
+    text-align: center;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .inf-badge .inf-val { font-size: 0.85rem; font-weight: 700; color: var(--green); }
+  .inf-badge .inf-lbl { font-size: 0.58rem; color: var(--dim); text-transform: uppercase; letter-spacing: 0.8px; margin-top: 2px; }
+
 </style>
 </head>
 <body>
 
+<div class="desktop-layout">
+
+<!-- LEFT COLUMN: header + setup + context panel (desktop sidebar) -->
+<div class="col-left">
+<div class="page-wrap">
+
 <div class="header">
   <div class="header-icon">🃏</div>
   <div>
-    <div class="header h1" style="font-family:'IBM Plex Mono',monospace;font-size:1rem;font-weight:700;color:var(--green);letter-spacing:2px;">RPS CHEAT</div>
-    <div class="sub">STATISTICAL ADVISOR v1.0</div>
+    <div class="header h1" style="font-family:'IBM Plex Mono',monospace;font-size:1rem;font-weight:700;color:var(--green);letter-spacing:2px;">רמאות אבן נייר ומספריים</div>
   </div>
 </div>
 
@@ -553,7 +811,84 @@
   </div>
 </div>
 
-<!-- Main -->
+  <!-- Context Panel: position + color input (in sidebar on desktop, inline on mobile) -->
+  <div class="context-panel" id="context-panel">
+    <div class="ctx-header">
+      <span>הסיבוב הנוכחי</span>
+      <span class="ctx-hint">גרור כפתורים · בחר צבעים</span>
+    </div>
+    <div class="ctx-body">
+
+      <!-- Position row -->
+      <div class="ctx-row">
+        <div class="ctx-row-label">סדר</div>
+        <div class="pos-drag-row" id="pos-drag-row">
+          <div class="pos-slot" id="slot-left"   data-pos="left"   ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="drop(event,'left')"   onclick="slotClick('left')">
+            <div class="slot-pos-name">שמאל</div>
+            <div class="pos-slot-empty pos-choice-pill"><div class="slot-emoji">❓</div></div>
+          </div>
+          <div class="pos-slot" id="slot-center" data-pos="center" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="drop(event,'center')" onclick="slotClick('center')">
+            <div class="slot-pos-name">אמצע</div>
+            <div class="pos-slot-empty pos-choice-pill"><div class="slot-emoji">❓</div></div>
+          </div>
+          <div class="pos-slot" id="slot-right"  data-pos="right"  ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="drop(event,'right')"  onclick="slotClick('right')">
+            <div class="slot-pos-name">ימין</div>
+            <div class="pos-slot-empty pos-choice-pill"><div class="slot-emoji">❓</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Color row -->
+      <div class="ctx-row">
+        <div class="ctx-row-label">צבעים</div>
+        <div class="color-swatches" id="color-swatches">
+          <div class="color-swatch-wrap">
+            <div class="color-swatch" id="swatch-rock" style="background:#ff6b6b;">
+              <input type="color" value="#ff6b6b" oninput="onColorChange('rock',this.value)" onchange="onColorChange('rock',this.value)">
+            </div>
+            <div class="swatch-label">אבן</div>
+          </div>
+          <div class="color-swatch-wrap">
+            <div class="color-swatch" id="swatch-paper" style="background:#4da6ff;">
+              <input type="color" value="#4da6ff" oninput="onColorChange('paper',this.value)" onchange="onColorChange('paper',this.value)">
+            </div>
+            <div class="swatch-label">נייר</div>
+          </div>
+          <div class="color-swatch-wrap">
+            <div class="color-swatch" id="swatch-scissors" style="background:#00ff88;">
+              <input type="color" value="#00ff88" oninput="onColorChange('scissors',this.value)" onchange="onColorChange('scissors',this.value)">
+            </div>
+            <div class="swatch-label">מספריים</div>
+          </div>
+        </div>
+      </div>
+
+      <button class="ctx-apply-btn" id="ctx-apply-btn" onclick="applyContext()" disabled>עדכן המלצה לפי הסיבוב ↑</button>
+    </div>
+
+    <!-- Influence display -->
+    <div class="influence-row" id="influence-row">
+      <div class="inf-badge">
+        <div class="inf-val" id="inf-pos-val">—</div>
+        <div class="inf-lbl">השפעת מיקום</div>
+      </div>
+      <div class="inf-badge">
+        <div class="inf-val" id="inf-col-val">—</div>
+        <div class="inf-lbl">השפעת צבע</div>
+      </div>
+      <div class="inf-badge">
+        <div class="inf-val" id="inf-base-val">—</div>
+        <div class="inf-lbl">בסיס סטטיסטי</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /page-wrap -->
+</div><!-- /col-left -->
+
+<!-- RIGHT COLUMN: main results -->
+<div class="col-right">
+<div class="page-wrap">
 <div class="main">
 
   <!-- Empty state -->
@@ -621,10 +956,16 @@
     </div>
   </div>
 
+
   <!-- Next round button -->
   <button class="next-btn" id="next-btn" onclick="nextRound()">סיבוב הבא ↩</button>
 
-</div>
+
+</div><!-- /main -->
+</div><!-- /page-wrap col-right -->
+</div><!-- /col-right -->
+
+</div><!-- /desktop-layout -->
 
 <div class="toast" id="toast"></div>
 
@@ -649,9 +990,15 @@ const db = getDatabase(app);
 // ── State ──
 let currentMode = 'app';
 let allPlayers = [];
-let currentProfile = null; // { name, games[], stats: {rock,paper,scissors,total} }
-let currentRecommendation = null; // { beat, opponentLikelyChoice, confidence, reason }
+let currentProfile = null;
+let currentRecommendation = null;
 let acHighlight = -1;
+
+// Position context state
+let ctxPositions = { left: null, center: null, right: null }; // choice name per slot
+let ctxColors = { rock: '#ff6b6b', paper: '#4da6ff', scissors: '#00ff88' };
+let draggingChoice = null;
+let pendingSlotClick = null; // for tap-to-assign flow on mobile
 
 // ── CHOICES ──
 const EMOJI = { rock: '✊', paper: '📄', scissors: '✂️' };
@@ -666,32 +1013,31 @@ function showToast(msg) {
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2500);
 }
-
 function hidden(id) { document.getElementById(id).classList.add('hidden'); }
 function show(id) { document.getElementById(id).classList.remove('hidden'); }
 function el(id) { return document.getElementById(id); }
 
 // ── MODE TOGGLE ──
+const isDesktop = () => window.innerWidth >= 900;
+
 window.setMode = function(mode) {
   currentMode = mode;
-  ['app','physical'].forEach(m => {
-    el('mode-' + m).classList.toggle('active', m === mode);
-  });
-  if (mode === 'app') {
-    el('location-card').classList.toggle('show', !!currentRecommendation);
-  } else {
-    el('location-card').classList.remove('show');
+  ['app','physical'].forEach(m => el('mode-' + m).classList.toggle('active', m === mode));
+  // On desktop the panel is always visible in sidebar; on mobile show/hide it
+  if (!isDesktop()) {
+    const panel = el('context-panel');
+    if (mode === 'app' && currentRecommendation) panel.classList.add('show');
+    else panel.classList.remove('show');
   }
 };
 
-// ── LOAD PLAYERS FOR AUTOCOMPLETE ──
+// ── AUTOCOMPLETE ──
 onValue(ref(db, 'players'), snap => {
   if (snap.exists()) {
     allPlayers = Object.values(snap.val()).map(p => p.name).filter(Boolean).sort((a,b) => a.localeCompare(b,'he'));
   }
 });
 
-// ── AUTOCOMPLETE ──
 window.onNameInput = function() {
   const val = el('player-name').value.trim().toLowerCase();
   const drop = el('ac-drop');
@@ -702,7 +1048,7 @@ window.onNameInput = function() {
   drop.innerHTML = matches.map((p, i) => {
     const idx = p.toLowerCase().indexOf(val);
     const display = p.slice(0,idx) + '<strong style="color:var(--green)">' + p.slice(idx, idx+val.length) + '</strong>' + p.slice(idx+val.length);
-    return `<div class="ac-item" data-name="${p}" data-i="${i}" onmousedown="acPick('${p.replace(/'/g,"\\'")}')">👤 ${display}</div>`;
+    return `<div class="ac-item" data-name="${p}" data-i="${i}" onmousedown="acPick('${p.replace(/'/g,"\'")}')">👤 ${display}</div>`;
   }).join('');
   drop.classList.add('show');
 };
@@ -723,15 +1069,225 @@ window.onNameKeydown = function(e) {
   else if (e.key === 'ArrowUp') { e.preventDefault(); acHighlight = Math.max(acHighlight-1,0); items.forEach((x,i)=>x.classList.toggle('hl',i===acHighlight)); }
   else if (e.key === 'Enter') {
     e.preventDefault();
-    if (acHighlight >= 0 && items[acHighlight]) { acPick(items[acHighlight].dataset.name); }
-    else { loadProfile(); }
+    if (acHighlight >= 0 && items[acHighlight]) acPick(items[acHighlight].dataset.name);
+    else loadProfile();
   }
   else if (e.key === 'Escape') { drop.classList.remove('show'); }
 };
-
 document.addEventListener('click', e => { if (!e.target.closest('#name-wrap')) el('ac-drop').classList.remove('show'); });
 
-// ── LOAD PROFILE ──
+// ════════════════════════════════════════════════
+// POSITION DRAG-AND-DROP / TAP-TO-ASSIGN
+// ════════════════════════════════════════════════
+
+// Render slots based on ctxPositions
+function renderSlots() {
+  ['left','center','right'].forEach(pos => {
+    const choice = ctxPositions[pos];
+    const slot = el('slot-' + pos);
+    const inner = slot.querySelector('.pos-choice-pill') || slot.lastElementChild;
+    if (choice) {
+      slot.classList.add('has-choice');
+      inner.className = 'pos-choice-pill';
+      inner.innerHTML = `<div class="slot-emoji">${EMOJI[choice]}</div><div class="slot-name ${choice}">${HEB[choice]}</div>`;
+    } else {
+      slot.classList.remove('has-choice');
+      inner.className = 'pos-slot-empty pos-choice-pill';
+      inner.innerHTML = `<div class="slot-emoji">❓</div>`;
+    }
+  });
+  // Enable apply button if all slots filled
+  const filled = Object.values(ctxPositions).every(v => v !== null);
+  el('ctx-apply-btn').disabled = !filled;
+}
+
+// Tap-to-assign: first tap selects a slot, then pick choice from a mini picker
+window.slotClick = function(pos) {
+  // If slot already has choice, clear it
+  if (ctxPositions[pos]) {
+    ctxPositions[pos] = null;
+    renderSlots();
+    pendingSlotClick = null;
+    return;
+  }
+  // Find unassigned choices
+  const assigned = Object.values(ctxPositions).filter(Boolean);
+  const remaining = ['rock','paper','scissors'].filter(c => !assigned.includes(c));
+  if (remaining.length === 0) return;
+  if (remaining.length === 1) {
+    ctxPositions[pos] = remaining[0];
+    renderSlots();
+    return;
+  }
+  // Show mini picker overlay
+  showChoicePicker(pos, remaining);
+};
+
+function showChoicePicker(pos, choices) {
+  // Remove existing picker
+  const existing = document.getElementById('choice-picker-overlay');
+  if (existing) existing.remove();
+
+  const posNames = { left: 'שמאל', center: 'אמצע', right: 'ימין' };
+  const overlay = document.createElement('div');
+  overlay.id = 'choice-picker-overlay';
+  overlay.style.cssText = `
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 300;
+    display: flex; align-items: center; justify-content: center;
+  `;
+  overlay.innerHTML = `
+    <div style="background:#0d0d14;border:1px solid #1e1e2e;border-radius:16px;padding:20px;min-width:240px;text-align:center;">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:0.7rem;color:#444466;text-transform:uppercase;letter-spacing:2px;margin-bottom:14px;">מה ב${posNames[pos]}?</div>
+      <div style="display:flex;gap:10px;justify-content:center;">
+        ${choices.map(c => `
+          <div onclick="assignChoice('${pos}','${c}')" style="
+            flex:1;background:#050508;border:1px solid #1e1e2e;border-radius:10px;
+            padding:12px 8px;cursor:pointer;transition:border-color 0.1s;
+          " onmouseover="this.style.borderColor='var(--green)'" onmouseout="this.style.borderColor='#1e1e2e'">
+            <div style="font-size:1.8rem;">${EMOJI[c]}</div>
+            <div style="font-size:0.75rem;font-weight:700;color:${c==='rock'?'#ff6b6b':c==='paper'?'#4da6ff':'#00ff88'};margin-top:4px;">${HEB[c]}</div>
+          </div>
+        `).join('')}
+      </div>
+      <div onclick="document.getElementById('choice-picker-overlay').remove()" style="margin-top:14px;font-size:0.75rem;color:#444466;cursor:pointer;">ביטול</div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+}
+
+window.assignChoice = function(pos, choice) {
+  document.getElementById('choice-picker-overlay')?.remove();
+  ctxPositions[pos] = choice;
+  renderSlots();
+};
+
+// Drag & drop (desktop mouse)
+window.dragOver = function(e) {
+  e.preventDefault();
+  e.currentTarget.classList.add('drag-over');
+};
+window.dragLeave = function(e) {
+  e.currentTarget.classList.remove('drag-over');
+};
+window.drop = function(e, pos) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  if (!draggingChoice) return;
+  Object.keys(ctxPositions).forEach(p => { if (ctxPositions[p] === draggingChoice) ctxPositions[p] = null; });
+  ctxPositions[pos] = draggingChoice;
+  draggingChoice = null;
+  renderSlots();
+  renderDraggableChoices();
+};
+
+// ── TOUCH DRAG ──
+let touchClone = null;
+let touchDragChoice = null;
+
+function initTouchDrag(chip, choice) {
+  chip.addEventListener('touchstart', function(e) {
+    e.preventDefault();
+    touchDragChoice = choice;
+    touchClone = chip.cloneNode(true);
+    const rect = chip.getBoundingClientRect();
+    touchClone.style.cssText += `;position:fixed;z-index:9999;pointer-events:none;
+      opacity:0.9;transform:scale(1.1);transition:none;
+      width:${rect.width}px;border-color:var(--green);`;
+    document.body.appendChild(touchClone);
+    const t = e.touches[0];
+    touchClone.style.left = (t.clientX - rect.width / 2) + 'px';
+    touchClone.style.top  = (t.clientY - rect.height / 2) + 'px';
+  }, { passive: false });
+
+  chip.addEventListener('touchmove', function(e) {
+    e.preventDefault();
+    if (!touchClone) return;
+    const t = e.touches[0];
+    const rect = touchClone.getBoundingClientRect();
+    touchClone.style.left = (t.clientX - rect.width / 2) + 'px';
+    touchClone.style.top  = (t.clientY - rect.height / 2) + 'px';
+    document.querySelectorAll('.pos-slot').forEach(s => s.classList.remove('drag-over'));
+    const under = document.elementFromPoint(t.clientX, t.clientY);
+    under?.closest('.pos-slot')?.classList.add('drag-over');
+  }, { passive: false });
+
+  chip.addEventListener('touchend', function(e) {
+    e.preventDefault();
+    if (touchClone) { touchClone.remove(); touchClone = null; }
+    document.querySelectorAll('.pos-slot').forEach(s => s.classList.remove('drag-over'));
+    if (!touchDragChoice) return;
+    const t = e.changedTouches[0];
+    const under = document.elementFromPoint(t.clientX, t.clientY);
+    const slot = under?.closest('.pos-slot');
+    if (slot?.dataset.pos) {
+      const pos = slot.dataset.pos;
+      Object.keys(ctxPositions).forEach(p => { if (ctxPositions[p] === touchDragChoice) ctxPositions[p] = null; });
+      ctxPositions[pos] = touchDragChoice;
+      renderSlots();
+      renderDraggableChoices();
+    }
+    touchDragChoice = null;
+  }, { passive: false });
+}
+
+// Make choice chips draggable
+function renderDraggableChoices() {
+  const existing = document.getElementById('draggable-choices');
+  if (existing) existing.remove();
+
+  const assigned = Object.values(ctxPositions).filter(Boolean);
+  const remaining = ['rock','paper','scissors'].filter(c => !assigned.includes(c));
+  if (!remaining.length) return;
+
+  const wrap = document.createElement('div');
+  wrap.id = 'draggable-choices';
+  wrap.style.cssText = 'display:flex;gap:6px;justify-content:center;margin-top:6px;';
+
+  remaining.forEach(c => {
+    const chip = document.createElement('div');
+    chip.draggable = true;
+    chip.style.cssText = `
+      background:var(--bg);border:1px solid var(--border);border-radius:8px;
+      padding:6px 10px;cursor:grab;display:flex;align-items:center;gap:5px;
+      font-size:0.78rem;font-weight:700;touch-action:none;user-select:none;
+      color:${c==='rock'?'#ff6b6b':c==='paper'?'#4da6ff':'#00ff88'};
+    `;
+    chip.innerHTML = `<span style="font-size:1rem;">${EMOJI[c]}</span>${HEB[c]}`;
+    chip.addEventListener('dragstart', () => { draggingChoice = c; });
+    chip.addEventListener('dragend',   () => { draggingChoice = null; });
+    chip.addEventListener('click', () => quickAssign(c));
+    initTouchDrag(chip, c);
+    wrap.appendChild(chip);
+  });
+
+  el('pos-drag-row').after(wrap);
+}
+
+window.quickAssign = function(choice) {
+  // Assign to first empty slot
+  for (const pos of ['left','center','right']) {
+    if (!ctxPositions[pos]) {
+      ctxPositions[pos] = choice;
+      renderSlots();
+      setTimeout(renderDraggableChoices, 0);
+      return;
+    }
+  }
+};
+
+// Override renderSlots to also refresh draggable chips
+const _origRenderSlots = renderSlots;
+// (we'll call renderDraggableChoices after renderSlots manually)
+
+// ── COLOR CHANGE ──
+window.onColorChange = function(choice, hex) {
+  ctxColors[choice] = hex;
+  el('swatch-' + choice).style.background = hex;
+};
+
+// ════════════════════════════════════════════════
+// LOAD PROFILE
+// ════════════════════════════════════════════════
 window.loadProfile = async function() {
   const name = el('player-name').value.trim();
   el('ac-drop').classList.remove('show');
@@ -740,7 +1296,7 @@ window.loadProfile = async function() {
   show('status-bar');
   hidden('rec-card');
   hidden('stats-card');
-  el('location-card').classList.remove('show');
+  el('context-panel').classList.remove('show');
   el('next-btn').classList.remove('show');
   el('status-dot').className = 'status-dot yellow';
   el('status-text').textContent = name ? `טוען נתונים של ${name}...` : 'טוען נתוני כלל המשתמשים...';
@@ -755,62 +1311,60 @@ window.loadProfile = async function() {
 
     const allGames = Object.entries(snap.val())
       .map(([id, g]) => ({ id, ...g }))
-      .filter(g => !g.cheated); // exclude cheated games
+      .filter(g => !g.cheated && !g.cpuCheat);
 
+    let personalGames = [];
     let relevantGames;
     let sourceLabel;
 
     if (name) {
-      // Games where this person was p1 or p2 (they made a choice)
-      // We want to see what THEY chose as a player
-      const playerGames = allGames.filter(g =>
-        (g.p1 === name || g.p2 === name)
-      );
-
-      if (playerGames.length >= 3) {
-        // Extract what THIS player chose
-        relevantGames = playerGames.map(g => ({
+      personalGames = allGames.filter(g => g.p1 === name || g.p2 === name)
+        .map(g => ({
           ...g,
           playerChoice: g.p1 === name ? g.p1Choice : g.p2Choice,
-          playerPos: g.p1 === name ? g.p1ChoicePosition : g.p2ChoicePosition
+          playerPos: g.p1 === name ? g.p1ChoicePosition : g.p2ChoicePosition,
+          playerColors: g.colors
         }));
-        sourceLabel = `${name} (${playerGames.length} משחקים)`;
+
+      if (personalGames.length >= 3) {
+        relevantGames = personalGames;
+        sourceLabel = `${name} (${personalGames.length} משחקים)`;
       } else {
-        // Not enough data – fall back to global
-        relevantGames = allGames.map(g => ({
-          ...g,
-          playerChoice: g.p1Choice, // use p1 as proxy
-          playerPos: g.p1ChoicePosition
-        }));
+        relevantGames = buildGlobalGames(allGames);
         sourceLabel = `כלל המשתמשים (אין מספיק נתונים על ${name})`;
       }
     } else {
-      // No name – global stats
-      // Count both p1 and p2 choices
-      const doubled = [];
-      allGames.forEach(g => {
-        if (g.p1Choice) doubled.push({ playerChoice: g.p1Choice, playerPos: g.p1ChoicePosition });
-        if (g.p2Choice) doubled.push({ playerChoice: g.p2Choice, playerPos: g.p2ChoicePosition });
-      });
-      relevantGames = doubled;
+      relevantGames = buildGlobalGames(allGames);
       sourceLabel = `כלל המשתמשים (${allGames.length} משחקים)`;
     }
 
+    // Compute influence weights from full dataset
+    const globalGames = buildGlobalGames(allGames);
+    const influence = computeInfluence(personalGames.length >= 3 ? personalGames : globalGames, globalGames);
+
     const stats = computeStats(relevantGames);
-    currentProfile = { name, games: relevantGames, stats, sourceLabel };
+    currentProfile = { name, games: relevantGames, personalGames, allGames, stats, sourceLabel, influence };
 
     renderStats(stats, sourceLabel);
-    const rec = computeRecommendation(stats, name);
+    const rec = computeRecommendation(stats, influence, null, null);
     currentRecommendation = rec;
     renderRecommendation(rec);
-    if (currentMode === 'app') renderLocationHint(stats);
+    renderInfluence(influence);
+
+    if (currentMode === 'app') {
+      // On mobile: show the panel inline. On desktop: it's always visible in sidebar.
+      if (!isDesktop()) el('context-panel').classList.add('show');
+      // Reset position context
+      ctxPositions = { left: null, center: null, right: null };
+      renderSlots();
+      renderDraggableChoices();
+    }
 
     setStatus('green', `${sourceLabel} · מוכן`);
     show('rec-card');
     show('stats-card');
     el('next-btn').classList.add('show');
 
-    // Watch for cheat detection
     watchForCheat(name, rec);
 
   } catch(e) {
@@ -819,10 +1373,111 @@ window.loadProfile = async function() {
   }
 };
 
-// ── COMPUTE STATS ──
+function buildGlobalGames(allGames) {
+  const doubled = [];
+  allGames.forEach(g => {
+    if (g.p1Choice) doubled.push({ playerChoice: g.p1Choice, playerPos: g.p1ChoicePosition, playerColors: g.colors });
+    if (g.p2Choice) doubled.push({ playerChoice: g.p2Choice, playerPos: g.p2ChoicePosition, playerColors: g.colors });
+  });
+  return doubled;
+}
+
+// ════════════════════════════════════════════════
+// INFLUENCE COMPUTATION
+// How much does position / color historically affect choice?
+// Returns { posWeight, colorWeight } both in [0,1], capped low
+// ════════════════════════════════════════════════
+function computeInfluence(games, globalGames) {
+  // Position influence: for each position, what % deviate from their base rate?
+  // We measure: for games where rock was in position X, how often did they pick rock vs expected?
+  // posInfluence = average |actual_rate_given_pos - base_rate| across all choice×pos combos
+  const posInfluenceScore = measurePositionInfluence(games);
+  const globalPosInfluence = measurePositionInfluence(globalGames);
+  // Blend personal + global
+  const hasPersonal = games !== globalGames;
+  const posWeight = Math.min(
+    (hasPersonal ? 0.5 * posInfluenceScore + 0.5 * globalPosInfluence : globalPosInfluence),
+    0.25 // hard cap: position can influence at most 25% of recommendation
+  );
+
+  const colorInfluenceScore = measureColorInfluence(games);
+  const globalColorInfluence = measureColorInfluence(globalGames);
+  const colorWeight = Math.min(
+    (hasPersonal ? 0.5 * colorInfluenceScore + 0.5 * globalColorInfluence : globalColorInfluence),
+    0.20 // hard cap: color can influence at most 20%
+  );
+
+  return { posWeight, colorWeight, posInfluenceScore, globalPosInfluence, colorInfluenceScore, globalColorInfluence };
+}
+
+function measurePositionInfluence(games) {
+  const choices = ['rock','paper','scissors'];
+  const positions = ['left','center','right'];
+  const total = games.length || 1;
+
+  // base rates
+  const base = {};
+  choices.forEach(c => base[c] = games.filter(g => g.playerChoice === c).length / total);
+
+  // per-position rates
+  let totalDev = 0, count = 0;
+  positions.forEach(pos => {
+    const posGames = games.filter(g => g.playerPos === pos);
+    if (posGames.length < 3) return;
+    choices.forEach(c => {
+      const rate = posGames.filter(g => g.playerChoice === c).length / posGames.length;
+      totalDev += Math.abs(rate - base[c]);
+      count++;
+    });
+  });
+  return count > 0 ? totalDev / count : 0;
+}
+
+function measureColorInfluence(games) {
+  // For each game, find the hue of the chosen choice's color
+  // Group by hue bucket (warm/cool/neutral) and measure deviation from base
+  const gamesWithColors = games.filter(g => g.playerColors && g.playerChoice);
+  if (gamesWithColors.length < 6) return 0;
+
+  const choices = ['rock','paper','scissors'];
+  const total = gamesWithColors.length;
+  const base = {};
+  choices.forEach(c => base[c] = gamesWithColors.filter(g => g.playerChoice === c).length / total);
+
+  // Bucket by hue: warm (red/orange/yellow 0-60, 300-360), cool (blue/green 60-300)
+  function getHueBucket(hex) {
+    if (!hex) return 'unknown';
+    const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+    const max = Math.max(r,g,b), min = Math.min(r,g,b), d = max - min;
+    if (d === 0) return 'neutral';
+    let h = max === r ? ((g-b)/d + (g<b?6:0))/6 : max === g ? ((b-r)/d+2)/6 : ((r-g)/d+4)/6;
+    h = Math.round(h * 360);
+    return (h < 60 || h > 300) ? 'warm' : 'cool';
+  }
+
+  let totalDev = 0, bucketCount = 0;
+  ['warm','cool','neutral'].forEach(bucket => {
+    const bucketGames = gamesWithColors.filter(g => {
+      const choiceColor = g.playerColors?.[g.playerChoice];
+      return getHueBucket(choiceColor) === bucket;
+    });
+    if (bucketGames.length < 3) return;
+    choices.forEach(c => {
+      const rate = bucketGames.filter(g => g.playerChoice === c).length / bucketGames.length;
+      totalDev += Math.abs(rate - base[c]);
+      bucketCount++;
+    });
+  });
+  return bucketCount > 0 ? totalDev / bucketCount : 0;
+}
+
+// ════════════════════════════════════════════════
+// COMPUTE STATS
+// ════════════════════════════════════════════════
 function computeStats(games) {
   const counts = { rock: 0, paper: 0, scissors: 0 };
-  const posCounts = { rock: {}, paper: {}, scissors: {} }; // choice -> position counts
+  const posCounts = { rock: {}, paper: {}, scissors: {} };
+  const colorCounts = { rock: {}, paper: {}, scissors: {} }; // hue bucket counts
 
   games.forEach(g => {
     const c = g.playerChoice;
@@ -830,16 +1485,21 @@ function computeStats(games) {
       counts[c]++;
       const pos = g.playerPos || 'unknown';
       posCounts[c][pos] = (posCounts[c][pos] || 0) + 1;
+      // color bucket
+      if (g.playerColors) {
+        const hex = g.playerColors[c];
+        const bucket = hexToHueBucket(hex);
+        colorCounts[c][bucket] = (colorCounts[c][bucket] || 0) + 1;
+      }
     }
   });
 
   const total = counts.rock + counts.paper + counts.scissors;
   const pcts = {};
   ['rock','paper','scissors'].forEach(c => {
-    pcts[c] = total > 0 ? Math.round((counts[c] / total) * 100) : 33;
+    pcts[c] = total > 0 ? (counts[c] / total) : 1/3;
   });
 
-  // Position preference per choice
   const posPrefs = {};
   ['rock','paper','scissors'].forEach(c => {
     const pm = posCounts[c];
@@ -847,26 +1507,121 @@ function computeStats(games) {
     posPrefs[c] = best ? best[0] : 'unknown';
   });
 
-  return { counts, pcts, total, posCounts, posPrefs };
+  return { counts, pcts, total, posCounts, posPrefs, colorCounts };
 }
 
-// ── COMPUTE RECOMMENDATION ──
-function computeRecommendation(stats, name) {
-  // Find the choice the opponent is most likely to make
-  // 75% weight on their own data if enough games, else 25%/75% global vs personal
-  const entries = Object.entries(stats.pcts).sort((a,b) => b[1]-a[1]);
-  const mostLikely = entries[0][0];
-  const confidence = entries[0][1];
+function hexToHueBucket(hex) {
+  if (!hex) return 'unknown';
+  try {
+    const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+    const max = Math.max(r,g,b), min = Math.min(r,g,b), d = max - min;
+    if (d === 0) return 'neutral';
+    let h = max === r ? ((g-b)/d + (g<b?6:0))/6 : max === g ? ((b-r)/d+2)/6 : ((r-g)/d+4)/6;
+    h = Math.round(h * 360);
+    return (h < 60 || h > 300) ? 'warm' : 'cool';
+  } catch(e) { return 'unknown'; }
+}
 
-  // What beats the most likely choice
+// ════════════════════════════════════════════════
+// COMPUTE RECOMMENDATION
+// Combines: base stats + optional position/color context
+// ════════════════════════════════════════════════
+function computeRecommendation(stats, influence, currentPositions, currentColors) {
+  const choices = ['rock','paper','scissors'];
+
+  // Base probabilities from stats
+  const baseProb = { ...stats.pcts };
+  const baseTotal = baseProb.rock + baseProb.paper + baseProb.scissors;
+  choices.forEach(c => baseProb[c] /= baseTotal); // normalize to sum=1
+
+  let adjProb = { ...baseProb };
+
+  // ── Position adjustment ──
+  if (currentPositions && influence) {
+    const posWeight = influence.posWeight; // how much to shift (0-0.25)
+    choices.forEach(c => {
+      const pos = Object.entries(currentPositions).find(([p,ch]) => ch === c)?.[0];
+      if (!pos) return;
+      // Historical rate of choosing c when c was at this position
+      const posGames = (currentProfile?.games || []).filter(g => g.playerPos === pos);
+      if (posGames.length < 3) return;
+      const histRate = posGames.filter(g => g.playerChoice === c).length / posGames.length;
+      // Shift adjProb toward histRate, scaled by posWeight
+      adjProb[c] = adjProb[c] * (1 - posWeight) + histRate * posWeight;
+    });
+  }
+
+  // ── Color adjustment ──
+  if (currentColors && influence) {
+    const colorWeight = influence.colorWeight; // 0-0.20
+    choices.forEach(c => {
+      const hex = currentColors[c];
+      const bucket = hexToHueBucket(hex);
+      // Historical rate of choosing c when c had this color bucket
+      const colorGames = (currentProfile?.games || []).filter(g => {
+        if (g.playerChoice !== c) return false;
+        return hexToHueBucket(g.playerColors?.[c]) === bucket;
+      });
+      const allCGames = (currentProfile?.games || []).filter(g => g.playerChoice === c);
+      if (allCGames.length < 3) return;
+      // "Color attraction" = do they pick c more when it's this color?
+      const colorAttraction = colorGames.length / Math.max(allCGames.length, 1);
+      // Shift adjProb toward colorAttraction * base, scaled by colorWeight
+      adjProb[c] = adjProb[c] * (1 - colorWeight) + (adjProb[c] * colorAttraction) * colorWeight;
+    });
+  }
+
+  // Normalize
+  const adjTotal = adjProb.rock + adjProb.paper + adjProb.scissors;
+  choices.forEach(c => adjProb[c] /= adjTotal);
+
+  // Find most likely opponent choice and beat it
+  const mostLikely = choices.reduce((a,b) => adjProb[a] > adjProb[b] ? a : b);
   const beat = BEATS[mostLikely];
+  const confidence = Math.round(adjProb[mostLikely] * 100);
 
-  const reasonParts = [];
-  reasonParts.push(`${name || 'היריב'} בוחר ${HEB[mostLikely]} ${confidence}% מהזמן`);
-  reasonParts.push(`→ ${HEB[beat]} מנצח ${HEB[mostLikely]}`);
+  // Build reason
+  const lines = [];
+  const hasContext = currentPositions && Object.values(currentPositions).some(Boolean);
+  const hasColor = currentColors;
+  lines.push(`${currentProfile?.name || 'היריב'} בוחר ${HEB[mostLikely]} ${Math.round(baseProb[mostLikely]*100)}% בבסיס`);
+  if (hasContext && influence?.posWeight > 0.01) {
+    lines.push(`מיקום משפיע ${Math.round(influence.posWeight*100)}% על ההחלטה`);
+  }
+  if (hasColor && influence?.colorWeight > 0.01) {
+    lines.push(`צבע משפיע ${Math.round(influence.colorWeight*100)}% על ההחלטה`);
+  }
+  lines.push(`→ שחק ${HEB[beat]}`);
 
-  return { beat, mostLikely, confidence, reason: reasonParts.join('\n') };
+  return { beat, mostLikely, confidence, reason: lines.join('\n'), adjProb };
 }
+
+// ── APPLY CONTEXT ──
+window.applyContext = function() {
+  if (!currentProfile) return;
+  const posComplete = Object.values(ctxPositions).every(Boolean);
+  if (!posComplete) { showToast('מלא את כל המיקומים קודם'); return; }
+
+  const rec = computeRecommendation(currentProfile.stats, currentProfile.influence, ctxPositions, ctxColors);
+  currentRecommendation = rec;
+  renderRecommendation(rec);
+  renderInfluence(currentProfile.influence);
+  showToast('המלצה עודכנה לפי הסיבוב!');
+};
+
+// ── NEXT ROUND ──
+window.nextRound = function() {
+  if (!currentProfile) return;
+  // Reset position context for new round
+  ctxPositions = { left: null, center: null, right: null };
+  renderSlots();
+  renderDraggableChoices();
+  // Recalculate without position/color context
+  const rec = computeRecommendation(currentProfile.stats, currentProfile.influence, null, null);
+  currentRecommendation = rec;
+  renderRecommendation(rec);
+  showToast('סיבוב חדש — הכנס את הסדר שלך');
+};
 
 // ── RENDER RECOMMENDATION ──
 function renderRecommendation(rec) {
@@ -882,107 +1637,46 @@ function renderRecommendation(rec) {
 // ── RENDER STATS ──
 function renderStats(stats, sourceLabel) {
   el('stats-count').textContent = `${stats.total} בחירות · ${sourceLabel}`;
+  const maxPct = Math.max(stats.pcts.rock, stats.pcts.paper, stats.pcts.scissors);
   ['rock','paper','scissors'].forEach(c => {
-    el('bar-' + c).style.width = stats.pcts[c] + '%';
-    el('pct-' + c).textContent = stats.pcts[c] + '%';
+    const pct = Math.round(stats.pcts[c] * 100);
+    el('bar-' + c).style.width = (maxPct > 0 ? (stats.pcts[c]/maxPct)*100 : 33) + '%';
+    el('pct-' + c).textContent = pct + '%';
   });
 }
 
-// ── RENDER LOCATION HINT (in-app mode) ──
-function renderLocationHint(stats) {
-  // The app shows buttons in shuffled order each round.
-  // We show which position each choice tends to appear at historically,
-  // and highlight the position of the recommended beat choice.
-  const rec = currentRecommendation;
-  const posOrder = ['left', 'center', 'right'];
-  const posHeb = { left: 'שמאל', center: 'אמצע', right: 'ימין' };
-
-  // For each position, find which choice most often appears there
-  // Build position->choice frequency from all games
-  const posChoiceCounts = { left: {}, center: {}, right: {} };
-  (currentProfile?.games || []).forEach(g => {
-    const pos = g.playerPos;
-    const choice = g.playerChoice;
-    if (posChoiceCounts[pos] && choice) {
-      posChoiceCounts[pos][choice] = (posChoiceCounts[pos][choice] || 0) + 1;
-    }
-  });
-
-  // For each choice, find which position it most prefers
-  const choicePrefPos = {};
-  ['rock','paper','scissors'].forEach(c => {
-    const pm = stats.posCounts[c];
-    const total = Object.values(pm).reduce((a,b)=>a+b,0) || 1;
-    choicePrefPos[c] = {};
-    posOrder.forEach(pos => {
-      choicePrefPos[c][pos] = Math.round(((pm[pos]||0)/total)*100);
-    });
-  });
-
-  // The opponent's most likely choice position
-  const likelyChoice = rec.mostLikely;
-  const likelyPos = stats.posPrefs[likelyChoice];
-
-  const grid = el('location-grid');
-  grid.innerHTML = posOrder.map(pos => {
-    // What choice most often appears at this position?
-    const best = Object.entries(posChoiceCounts[pos] || {}).sort((a,b)=>b[1]-a[1])[0];
-    const bestChoice = best ? best[0] : null;
-    const isHighlighted = pos === likelyPos;
-
-    return `
-      <div class="loc-slot${isHighlighted ? ' highlighted' : ''}">
-        <div class="pos-label">${posHeb[pos]}</div>
-        <div class="pos-emoji">${bestChoice ? EMOJI[bestChoice] : '❓'}</div>
-        <div class="pos-name">${bestChoice ? HEB[bestChoice] : '?'}</div>
-        <div class="pos-pct">${isHighlighted ? '← כאן' : (bestChoice ? choicePrefPos[bestChoice]?.[pos] + '%' : '')}</div>
-      </div>`;
-  }).join('');
-
-  el('location-card').classList.add('show');
+// ── RENDER INFLUENCE ──
+function renderInfluence(influence) {
+  if (!influence) return;
+  el('inf-pos-val').textContent = Math.round(influence.posWeight * 100) + '%';
+  el('inf-col-val').textContent = Math.round(influence.colorWeight * 100) + '%';
+  const baseWeight = Math.round((1 - influence.posWeight - influence.colorWeight) * 100);
+  el('inf-base-val').textContent = baseWeight + '%';
 }
-
-// ── NEXT ROUND ──
-window.nextRound = function() {
-  if (!currentProfile) return;
-  renderRecommendation(currentRecommendation);
-  showToast('המלצה עדכנית — בהצלחה!');
-};
 
 // ── CHEAT DETECTION ──
-// If within 30s a game appears with identical p1/p2 and same choices as our recommendation,
-// mark it as cheated=true
 function watchForCheat(playerName, rec) {
   if (!playerName) return;
   const watchStart = Date.now();
   const WINDOW_MS = 30000;
-
-  const gamesRef = ref(db, 'games');
-  const unsub = onValue(gamesRef, async (snap) => {
+  const unsub = onValue(ref(db, 'games'), async (snap) => {
     if (!snap.exists()) return;
     const now = Date.now();
     if (now - watchStart > WINDOW_MS) { unsub(); return; }
-
     const games = Object.entries(snap.val());
     for (const [id, g] of games) {
       if (g.cheated) continue;
       if (!g.timestamp || now - g.timestamp > WINDOW_MS) continue;
-      // Check if this game involves our player AND matches the recommended beat
       const involvesPlayer = g.p1 === playerName || g.p2 === playerName;
       if (!involvesPlayer) continue;
-
       const myChoice = g.p1 === playerName ? g.p1Choice : g.p2Choice;
-      // Did we play exactly the recommended beat choice?
       if (myChoice === rec.beat) {
         try {
           await update(ref(db, 'games/' + id), { cheated: true });
-          console.log('[cheat] marked game', id, 'as cheated');
         } catch(e) { console.warn('[cheat] could not mark', e); }
       }
     }
   });
-
-  // Stop listening after 30s
   setTimeout(() => { try { unsub(); } catch(e){} }, WINDOW_MS + 1000);
 }
 

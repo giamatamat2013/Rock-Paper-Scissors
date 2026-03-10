@@ -690,7 +690,21 @@
 
       <div id="local-name-setup" class="card">
         <div style="font-weight:700;font-size:1.05rem;margin-bottom:4px;">שמות שחקנים</div>
-        <div class="text-muted" style="margin-bottom:14px;">שם חובה לכל שחקן</div>
+        <div class="text-muted" style="margin-bottom:10px;">שם חובה לכל שחקן</div>
+
+        <!-- Game type selector – REQUIRED -->
+        <div style="margin-bottom:16px;">
+          <div style="font-size:0.78rem;color:var(--muted);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">סוג משחק <span style="color:var(--accent)">*</span></div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-secondary" id="l-type-app" onclick="setLocalType('app')" style="flex:1;font-size:0.85rem;padding:10px 6px;">
+              📱 באפליקציה
+            </button>
+            <button class="btn btn-secondary" id="l-type-physical" onclick="setLocalType('physical')" style="flex:1;font-size:0.85rem;padding:10px 6px;">
+              🤝 פיזי
+            </button>
+          </div>
+          <div class="field-error" id="l-type-err" style="margin-top:5px;">יש לבחור סוג משחק</div>
+        </div>
         <div style="margin-bottom:10px;">
           <div style="font-size:0.8rem;color:var(--muted);margin-bottom:5px;font-weight:600;">שחקן 1</div>
           <div class="autocomplete-wrap">
@@ -748,6 +762,7 @@
           <div style="font-size:0.75rem;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">היסטוריה</div>
           <div class="history" id="l-history"></div>
         </div>
+        <button class="btn btn-secondary btn-sm mt-8" onclick="resetLocalSetup()">← החלף שחקנים / סוג</button>
       </div>
     </div>
   </div>
@@ -913,6 +928,7 @@ let lState = { phase: 'p1', p1Choice: null, p2Choice: null };
 let lScore = { p1: 0, p2: 0, draws: 0 };
 let lHistory = [];
 let lNames = { p1: 'שחקן 1', p2: 'שחקן 2' };
+let lLocalType = null; // 'app' | 'physical'
 
 // Online state
 let oState = {
@@ -1266,6 +1282,14 @@ window.setMode = function(mode) {
     document.getElementById('screen-' + m).classList.toggle('hidden', m !== mode);
     document.getElementById('mode-' + m).classList.toggle('active', m === mode);
   });
+  // Reset local type selection when switching to local
+  if (mode === 'local') {
+    lLocalType = null;
+    const appBtn = document.getElementById('l-type-app');
+    const physBtn = document.getElementById('l-type-physical');
+    if (appBtn) { appBtn.className = 'btn btn-secondary'; appBtn.style.cssText = 'flex:1;font-size:0.85rem;padding:10px 6px;'; }
+    if (physBtn) { physBtn.className = 'btn btn-secondary'; physBtn.style.cssText = 'flex:1;font-size:0.85rem;padding:10px 6px;'; }
+  }
   if (mode === 'online' && oState.roomCode) {
     // Already in room, stay in game
   }
@@ -1464,10 +1488,38 @@ window.playComputer = function(choice) {
 };
 
 // ==================== LOCAL MODE ====================
+window.setLocalType = function(type) {
+  lLocalType = type;
+  const appBtn = document.getElementById('l-type-app');
+  const physBtn = document.getElementById('l-type-physical');
+  const errEl = document.getElementById('l-type-err');
+  errEl.classList.remove('show');
+  if (type === 'app') {
+    appBtn.className = 'btn btn-primary';
+    appBtn.style.cssText = 'flex:1;font-size:0.85rem;padding:10px 6px;';
+    physBtn.className = 'btn btn-secondary';
+    physBtn.style.cssText = 'flex:1;font-size:0.85rem;padding:10px 6px;';
+  } else {
+    physBtn.className = 'btn btn-primary';
+    physBtn.style.cssText = 'flex:1;font-size:0.85rem;padding:10px 6px;background:linear-gradient(135deg,var(--accent2),#00cc77);color:#000;';
+    appBtn.className = 'btn btn-secondary';
+    appBtn.style.cssText = 'flex:1;font-size:0.85rem;padding:10px 6px;';
+  }
+};
+
 window.startLocalGame = function() {
   const n1 = document.getElementById('l-name1').value.trim();
   const n2 = document.getElementById('l-name2').value.trim();
   let valid = true;
+
+  // Validate game type
+  if (!lLocalType) {
+    document.getElementById('l-type-err').classList.add('show');
+    valid = false;
+  } else {
+    document.getElementById('l-type-err').classList.remove('show');
+  }
+
   if (!n1) {
     document.getElementById('l-name1-err').classList.add('show');
     document.getElementById('l-name1').classList.add('input-error');
@@ -1601,6 +1653,7 @@ function revealLocal() {
 
   saveGame({
     mode: 'local',
+    gameType: lLocalType || 'unknown',
     p1: lNames.p1,
     p2: lNames.p2,
     p1Choice: p1,
@@ -1612,6 +1665,20 @@ function revealLocal() {
     colors: { rock: sessionColors.rock.hex, paper: sessionColors.paper.hex, scissors: sessionColors.scissors.hex }
   });
 }
+
+window.resetLocalSetup = function() {
+  document.getElementById('local-playing').classList.add('hidden');
+  document.getElementById('local-name-setup').classList.remove('hidden');
+  lLocalType = null;
+  lScore = { p1: 0, p2: 0, draws: 0 };
+  lHistory = [];
+  document.getElementById('l-history').innerHTML = '';
+  // Reset type buttons
+  const appBtn = document.getElementById('l-type-app');
+  const physBtn = document.getElementById('l-type-physical');
+  appBtn.className = 'btn btn-secondary'; appBtn.style.cssText = 'flex:1;font-size:0.85rem;padding:10px 6px;';
+  physBtn.className = 'btn btn-secondary'; physBtn.style.cssText = 'flex:1;font-size:0.85rem;padding:10px 6px;';
+};
 
 window.localNextRound = function() {
   resetLocalRound(true); // skipEnable=true, cooldown will re-enable
@@ -2019,4 +2086,4 @@ function trackRoomJoin() {
 
 </script>
 </body>
-</html>
+</html> 
