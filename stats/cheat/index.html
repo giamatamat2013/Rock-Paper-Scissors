@@ -1197,7 +1197,7 @@
     </div>
   </div>
 
-
+  <button class="next-btn" id="next-btn" onclick="saveRoundAndNext()">💾 שמור וסיבוב הבא</button>
 
 </div><!-- /main-mobile -->
 
@@ -1404,7 +1404,7 @@ document.addEventListener('click', e => {
 });
 
 // ── SMART UPDATE: single entry point for load + refresh ──
-window.smartUpdate = function() {
+window.smartUpdate = async function() {
   const name    = el('player-name').value.trim();
   const myName  = el('my-name').value.trim();
 
@@ -1413,9 +1413,11 @@ window.smartUpdate = function() {
 
   // If profile already loaded for this name, just refresh recommendation with current context
   if (currentProfile && currentProfile.name === name) {
-    const rec = buildRecommendation();
+    setStatus('yellow', `${currentProfile.sourceLabel} · שואל AI...`);
+    const rec = await buildRecommendationWithAI();
     currentRecommendation = rec;
     renderRecommendation(rec);
+    setStatus('green', `${currentProfile.sourceLabel} · מוכן`);
     showToast('המלצה עודכנה ✓');
   } else {
     loadProfile();
@@ -1695,7 +1697,9 @@ window.loadProfile = async function() {
     lastRoundTimestamp = null;
 
     renderStats(currentProfile.stats, currentProfile.sourceLabel);
-    const rec = buildRecommendation();
+    cachedAIProb = null; // איפוס cache לפרופיל חדש
+    setStatus('yellow', `${currentProfile.sourceLabel} · שואל AI...`);
+    const rec = await buildRecommendationWithAI();
     currentRecommendation = rec;
     renderRecommendation(rec);
     renderInfluence(currentProfile.influence, currentProfile.wsls);
@@ -1729,15 +1733,94 @@ window.loadProfile = async function() {
 
 
 // ════════════════════════════════════════════════
+// AI PROBABILITY — שאל את Claude מה הסיכויים
+// ════════════════════════════════════════════════
+async function fetchAIProb(profile) {
+  try {
+    const stats = profile.stats;
+    const name  = profile.name || 'היריב';
+    const total = Math.round(stats.total || 0);
+    const rockPct     = Math.round((stats.pcts?.rock     || 0) * 100);
+    const paperPct    = Math.round((stats.pcts?.paper    || 0) * 100);
+    const scissorsPct = Math.round((stats.pcts?.scissors || 0) * 100);
+
+    const wsls   = profile.wsls   || {};
+    const wsPct  = Math.round((wsls.wsRate  || 0) * 100);
+    const lsPct  = Math.round((wsls.lsRate  || 0) * 100);
+
+    const lastRound = profile.lastRound;
+    const lastInfo  = lastRound
+      ? `הסיבוב האחרון: ${lastRound.oppChoice || '?'}, תוצאה: ${lastRound.outcome || '?'}`
+      : 'אין מידע על סיבוב אחרון';
+
+    const prompt = `אתה מנתח דפוסי משחק של שחק אבן-נייר-מספריים.
+
+נתוני השחקן "${name}" (${total} משחקים):
+- אבן: ${rockPct}%
+- נייר: ${paperPct}%
+- מספריים: ${scissorsPct}%
+- Win-Stay rate: ${wsPct}% (אחרי ניצחון חוזר לאותה בחירה)
+- Lose-Shift rate: ${lsPct}% (אחרי הפסד מחליף בחירה)
+- ${lastInfo}
+
+בהתבסס על הנתונים האלה, מה ההסתברות שהשחקן יבחר כל אפשרות בסיבוב הבא?
+
+ענה אך ורק ב-JSON הזה (ללא שום טקסט אחר):
+{"rock": 0.XX, "paper": 0.XX, "scissors": 0.XX}
+
+הערכים חייבים להסתכם ל-1.0 בדיוק.`;
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 100,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    });
+
+    if (!response.ok) return null;
+    const data = await response.json();
+    const text = (data.content || []).map(b => b.text || '').join('').trim();
+    const clean = text.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(clean);
+    if (
+      typeof parsed.rock === 'number' &&
+      typeof parsed.paper === 'number' &&
+      typeof parsed.scissors === 'number'
+    ) {
+      // נרמל
+      const sum = parsed.rock + parsed.paper + parsed.scissors;
+      return { rock: parsed.rock/sum, paper: parsed.paper/sum, scissors: parsed.scissors/sum };
+    }
+    return null;
+  } catch(e) {
+    console.warn('AI prob failed:', e);
+    return null;
+  }
+}
+
+// ════════════════════════════════════════════════
 // BUILD RECOMMENDATION — wrapper around rps-engine.js
 // ════════════════════════════════════════════════
-function buildRecommendation() {
+let cachedAIProb = null; // מטמון AI לפרופיל הנוכחי
+
+function buildRecommendation(aiProb) {
   if (!currentProfile) return null;
   return RPSEngine.buildRecommendation(currentProfile, {
     positions:      ctxPositions,
     colors:         ctxColors,
     sessionHistory: sessionHistory,
+    aiProb:         aiProb || cachedAIProb || null,
   });
+}
+
+async function buildRecommendationWithAI() {
+  if (!currentProfile) return null;
+  const aiProb = await fetchAIProb(currentProfile);
+  cachedAIProb = aiProb;
+  return buildRecommendation(aiProb);
 }
 
 // ════════════════════════════════════════════════
