@@ -1889,7 +1889,7 @@ function renderWinPcts(adjProb, beat) {
   show('winpct-card');
 }
 
-
+function renderStats(stats, sourceLabel) {
   el('stats-count').textContent = `${stats.total} בחירות · ${sourceLabel}`;
   const maxPct = Math.max(stats.pcts.rock, stats.pcts.paper, stats.pcts.scissors);
   ['rock','paper','scissors'].forEach(c => {
