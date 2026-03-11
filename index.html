@@ -587,12 +587,33 @@
   }
   .btn-random:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(124,58,237,0.5); }
 
+  /* ── Streak ── */
+  .score-item.streak .val { color: var(--accent3); }
+  @keyframes streakPop { 0%,100%{transform:scale(1)} 50%{transform:scale(1.5)} }
+  .streak-pop { animation: streakPop 0.4s cubic-bezier(.34,1.56,.64,1); }
+
+
+
+
+  /* ── Chat ── */
+  .chat-msgs { height:140px; overflow-y:auto; display:flex; flex-direction:column; gap:5px; padding:8px; background:var(--bg); border-radius:10px; margin-bottom:8px; }
+  .chat-msg { font-size:0.82rem; padding:6px 10px; border-radius:10px; max-width:88%; word-break:break-word; }
+  .chat-msg .cm-name { font-weight:700; font-size:0.68rem; opacity:0.6; margin-bottom:1px; }
+  .chat-msg.mine { background:rgba(255,77,109,0.12); border:1px solid rgba(255,77,109,0.2); align-self:flex-end; }
+  .chat-msg.theirs { background:rgba(77,255,180,0.07); border:1px solid rgba(77,255,180,0.12); align-self:flex-start; }
+  .chat-msg.system { background:transparent; color:var(--muted); font-size:0.72rem; align-self:center; font-style:italic; }
+
+  /* ── Spectator ── */
+
+
+
+
   /* Responsive */
   @media (max-width: 480px) {
-    .mode-grid { grid-template-columns: 1fr 1fr 1fr; }
-    .mode-btn { padding: 14px 6px; }
-    .mode-btn .icon { font-size: 1.5rem; }
-    .mode-btn .label { font-size: 0.72rem; }
+    .mode-grid { gap:5px !important; }
+    .mode-btn { padding: 12px 4px; }
+    .mode-btn .icon { font-size: 1.4rem; }
+    .mode-btn .label { font-size: 0.64rem; }
     .choice-display { width: 90px; height: 90px; font-size: 2.8rem; }
   }
 </style>
@@ -606,7 +627,7 @@
   </div>
 
   <!-- Mode selector -->
-  <div class="mode-grid">
+  <div class="mode-grid" style="grid-template-columns:repeat(3,1fr);">
     <button class="mode-btn active" onclick="setMode('computer')" id="mode-computer">
       <span class="icon">🤖</span>
       <span class="label">נגד מחשב</span>
@@ -649,7 +670,7 @@
         </div>
         <div class="field-error" id="c-botplayer-err">נא לבחור שחקן</div>
       </div>
-      <div id="c-cheat-hint" class="hidden" style="font-size:0.75rem;color:var(--accent3);margin-top:6px;text-align:center;">מחשב ישתמש בנתוני Firebase כדי לנצח אותך</div>
+      <div id="c-cheat-hint" class="hidden" style="font-size:0.75rem;color:var(--accent3);margin-top:6px;text-align:center;">מחשב ינתח את ההיסטוריה שלך וגם יסביר את הבחירות שלו</div>
       <button class="btn btn-primary mt-12" style="width:100%" onclick="startComputerGame()">▶ התחל משחק</button>
     </div>
 
@@ -659,6 +680,7 @@
       <div class="score-item wins"><div class="val" id="c-wins">0</div><div class="lbl">ניצחונות</div></div>
       <div class="score-item draws"><div class="val" id="c-draws">0</div><div class="lbl">תיקו</div></div>
       <div class="score-item losses"><div class="val" id="c-losses">0</div><div class="lbl">הפסדים</div></div>
+      <div class="score-item streak"><div class="val" id="c-streak">0</div><div class="lbl">🔥 רצף</div></div>
     </div>
 
     <div class="card">
@@ -676,6 +698,7 @@
       </div>
 
       <div class="result-banner empty" id="c-result">בחר את המהלך שלך</div>
+      <div id="c-cpu-reason" style="text-align:center;font-size:0.8rem;color:var(--muted);min-height:1.2em;margin-top:4px;"></div>
 
       <div class="choices" id="c-choices">
         <button class="choice-btn rock" onclick="playComputer('rock')">
@@ -840,8 +863,11 @@
 
         <div id="lobby-error" class="hidden" style="color:var(--accent);font-size:0.85rem;margin-top:8px;text-align:center;"></div>
       </div>
+
+
     </div>
 
+    <!-- Spectator View -->
     <!-- Waiting for opponent -->
     <div id="online-waiting" class="hidden card" style="text-align:center;padding:32px 24px;">
       <div style="font-size:2.5rem;margin-bottom:12px;">⏳</div>
@@ -873,6 +899,7 @@
         <div class="score-item wins"><div class="val" id="o-mywins">0</div><div class="lbl">הניצחונות שלי</div></div>
         <div class="score-item draws"><div class="val" id="o-draws">0</div><div class="lbl">תיקו</div></div>
         <div class="score-item losses"><div class="val" id="o-losses">0</div><div class="lbl">הפסדים</div></div>
+        <div class="score-item streak"><div class="val" id="o-streak">0</div><div class="lbl">🔥 רצף</div></div>
       </div>
 
       <div class="card">
@@ -916,13 +943,29 @@
       </div>
 
       <button class="btn btn-secondary btn-sm mt-8" onclick="leaveRoom()">עזוב חדר</button>
+
+      <!-- Chat -->
+      <div class="card" style="padding:14px 16px;margin-top:12px;">
+        <div style="font-size:0.75rem;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">💬 צ'אט</div>
+        <div class="chat-msgs" id="chat-msgs"></div>
+        <div style="display:flex;gap:8px;">
+          <input type="text" class="input-field" id="chat-input" placeholder="הודעה..." maxlength="60" style="font-size:0.88rem;" onkeydown="if(event.key==='Enter')sendChat()">
+          <button class="btn btn-secondary btn-sm" onclick="sendChat()" style="flex-shrink:0;">שלח</button>
+        </div>
+      </div>
+
+      <!-- Rematch -->
+      <div id="rematch-row" class="hidden" style="display:flex;align-items:center;justify-content:center;gap:10px;padding:10px 0;margin-top:4px;">
+        <button id="rematch-btn" class="btn btn-primary btn-sm" onclick="proposeRematch()">🔄 Rematch</button>
+        <span id="rematch-waiting" class="hidden" style="font-size:0.82rem;color:var(--muted);">ממתין לאישור...</span>
+      </div>
     </div>
 
   </div>
 
-</div>
+</div><!-- end #app -->
 
-<div id="toast" class="toast"></div>
+
 
 <script src="./rps-engine.js"></script>
 <script type="module">
@@ -930,6 +973,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
 import { getAnalytics, logEvent } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-analytics.js";
 import { getDatabase, ref, set, get, onValue, update, remove, off } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js";
+import { getAI, getGenerativeModel, GoogleAIBackend } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-ai.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyA-IW5ESE-eBuyMBfreGmyPdQV7YmkfmGs",
@@ -945,6 +989,10 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 const db = getDatabase(app);
+
+// ── Firebase AI (Gemini) ──
+const ai = getAI(app, { backend: new GoogleAIBackend() });
+const geminiModel = getGenerativeModel(ai, { model: 'gemini-2.5-flash-lite' });
 
 // ==================== GLOBALS ====================
 const CHOICES = { rock: '✊', paper: '📄', scissors: '✂️' };
@@ -962,9 +1010,11 @@ let allPlayers = []; // cached from Firebase
 let cScore = { wins: 0, losses: 0, draws: 0 };
 let cPlayerName = null;
 let cpuPreChoice = null; // CPU decides BEFORE player clicks
+let cpuPreReason = null; // Explanation of why CPU chose
 let cpuMode = 'normal'; // 'normal' | 'cheat' | 'playerbot'
 let cpuBotPlayerName = null; // For playerbot mode
 let cpuBotLastRound = null;  // Track last round for playerbot context
+let cSessionHistory = []; // Recent rounds this session: [{ oppChoice, outcome, timestamp }]
 
 // Local state
 let lState = { phase: 'p1', p1Choice: null, p2Choice: null };
@@ -1325,7 +1375,6 @@ window.setMode = function(mode) {
     document.getElementById('screen-' + m).classList.toggle('hidden', m !== mode);
     document.getElementById('mode-' + m).classList.toggle('active', m === mode);
   });
-  // Reset local type selection when switching to local
   if (mode === 'local') {
     lLocalType = null;
     const appBtn = document.getElementById('l-type-app');
@@ -1333,9 +1382,7 @@ window.setMode = function(mode) {
     if (appBtn) { appBtn.className = 'btn btn-secondary'; appBtn.style.cssText = 'flex:1;font-size:0.85rem;padding:10px 6px;'; }
     if (physBtn) { physBtn.className = 'btn btn-secondary'; physBtn.style.cssText = 'flex:1;font-size:0.85rem;padding:10px 6px;'; }
   }
-  if (mode === 'online' && oState.roomCode) {
-    // Already in room, stay in game
-  }
+  if (mode === 'online' && oState.roomCode) { /* Already in room */ }
 };
 
 // ==================== COMPUTER MODE ====================
@@ -1375,13 +1422,18 @@ window.startComputerGame = function() {
   cPlayerName = name;
   savePlayer(name);
   cScore = { wins: 0, losses: 0, draws: 0 };
+  cStreak = 0;
   document.getElementById('c-wins').textContent = 0;
   document.getElementById('c-draws').textContent = 0;
   document.getElementById('c-losses').textContent = 0;
+  document.getElementById('c-streak').textContent = 0;
   document.getElementById('c-history').innerHTML = '';
+  cSessionHistory = [];
   document.getElementById('c-my-name').textContent = name;
   document.getElementById('c-result').className = 'result-banner empty';
   document.getElementById('c-result').textContent = 'בחר את המהלך שלך';
+  const reasonEl = document.getElementById('c-cpu-reason');
+  if (reasonEl) reasonEl.textContent = '';
   setDisplay(document.getElementById('c-player-display'), null, false);
   setDisplay(document.getElementById('c-cpu-display'), null, false);
   document.getElementById('c-name-setup').classList.add('hidden');
@@ -1397,6 +1449,11 @@ window.startComputerGame = function() {
     cpuLabel.textContent = '👤 ' + cpuBotPlayerName;
     cpuLabel.style.color = '#aa88ff';
     cpuSublabel.textContent = 'בוט שחקן';
+    cpuSublabel.style.display = 'block';
+  } else if (cpuMode === 'training') {
+    cpuLabel.textContent = '🎓 אימון';
+    cpuLabel.style.color = '#22d3ee';
+    cpuSublabel.textContent = 'בוט מסביר';
     cpuSublabel.style.display = 'block';
   } else {
     cpuLabel.textContent = 'מחשב';
@@ -1422,19 +1479,16 @@ window.resetComputerMode = function() {
 // ==================== CPU CHEAT MODE ====================
 window.setCpuMode = function(mode) {
   cpuMode = mode;
-  const normalBtn    = document.getElementById('c-mode-normal');
-  const cheatBtn     = document.getElementById('c-mode-cheat');
-  const botBtn       = document.getElementById('c-mode-playerbot');
-  const hint         = document.getElementById('c-cheat-hint');
-  const botWrap      = document.getElementById('c-playerbot-wrap');
+  const normalBtn = document.getElementById('c-mode-normal');
+  const cheatBtn  = document.getElementById('c-mode-cheat');
+  const botBtn    = document.getElementById('c-mode-playerbot');
+  const hint      = document.getElementById('c-cheat-hint');
+  const botWrap   = document.getElementById('c-playerbot-wrap');
 
   // Reset all
-  normalBtn.className = 'btn btn-secondary';
-  normalBtn.style.cssText = 'flex:1;';
-  cheatBtn.className = 'btn btn-secondary';
-  cheatBtn.style.cssText = 'flex:1;';
-  botBtn.className = 'btn btn-secondary';
-  botBtn.style.cssText = 'width:100%;margin-top:0;';
+  normalBtn.className = 'btn btn-secondary'; normalBtn.style.cssText = 'flex:1;';
+  cheatBtn.className  = 'btn btn-secondary'; cheatBtn.style.cssText  = 'flex:1;';
+  botBtn.className    = 'btn btn-secondary'; botBtn.style.cssText    = 'width:100%;margin-top:0;';
   hint.classList.add('hidden');
   botWrap.classList.add('hidden');
 
@@ -1457,29 +1511,41 @@ window.setCpuMode = function(mode) {
 // The CPU plays each choice with probability = player's win% with that choice.
 // i.e. if player's win% with paper is 40% (→ opponent plays rock 40%),
 //      the CPU plays paper 40% of the time.
-async function cheatCpuChoice(playerName) {
+async function cheatCpuChoice(playerName, sessionHistory) {
   try {
     const snap = await get(ref(db, 'games'));
-    if (!snap.exists()) return randomChoice();
+    if (!snap.exists()) { cpuPreReason = null; return randomChoice(); }
 
     const allGamesRaw = Object.entries(snap.val()).map(([id, g]) => ({ id, ...g }));
     const profile     = RPSEngine.buildProfile(allGamesRaw, playerName, 'local');
-    const rec         = RPSEngine.buildRecommendation(profile, {});
 
-    if (!rec || !rec.adjProb) return randomChoice();
+    // Inject last round context for win-stay/lose-shift and streak detection
+    const recent = sessionHistory || [];
+    if (recent.length > 0) {
+      profile.lastRound = recent[recent.length - 1];
+    }
 
-    // Build CPU distribution: CPU plays X with prob = player's win% with X
-    // player's win% with X = adjProb[BEATEN_BY[X]]  (X wins against BEATEN_BY[X])
+    const rec = RPSEngine.buildRecommendation(profile, { sessionHistory: recent });
+
+    if (!rec || !rec.adjProb) { cpuPreReason = null; return randomChoice(); }
+
     const BEATEN_BY = RPSEngine.BEATEN_BY;
     const cpuDist = {
-      rock:     rec.adjProb[BEATEN_BY.rock],     // adjProb[scissors]
-      paper:    rec.adjProb[BEATEN_BY.paper],    // adjProb[rock]
-      scissors: rec.adjProb[BEATEN_BY.scissors], // adjProb[paper]
+      rock:     rec.adjProb[BEATEN_BY.rock],
+      paper:    rec.adjProb[BEATEN_BY.paper],
+      scissors: rec.adjProb[BEATEN_BY.scissors],
     };
+
+    const predicted = rec.mostLikely;
+    const pct = Math.round(rec.adjProb[predicted] * 100);
+    const probs = {};
+    RPSEngine.CHOICES.forEach(c => probs[c] = Math.round(rec.adjProb[c] * 100));
+    cpuPreReason = { type: 'cheat', predicted, pct, probs, rec };
 
     return RPSEngine.sampleWeighted(cpuDist);
   } catch(e) {
     console.warn('[cheat cpu]', e);
+    cpuPreReason = null;
     return randomChoice();
   }
 }
@@ -1488,21 +1554,86 @@ async function cheatCpuChoice(playerName) {
 async function playerBotChoice() {
   try {
     const snap = await get(ref(db, 'games'));
-    if (!snap.exists()) return randomChoice();
+    if (!snap.exists()) { cpuPreReason = null; return randomChoice(); }
     const allGamesRaw = Object.entries(snap.val()).map(([id, g]) => ({ id, ...g }));
     const profile = RPSEngine.buildProfile(allGamesRaw, cpuBotPlayerName, null);
-    // Inject lastRound context so the bot reacts to what happened
-    if (cpuBotLastRound) {
-      profile.lastRound = cpuBotLastRound;
-    }
+    if (cpuBotLastRound) profile.lastRound = cpuBotLastRound;
     const rec = RPSEngine.buildRecommendation(profile, {});
-    if (!rec || !rec.adjProb) return randomChoice();
-    // Sample from adjProb so the bot mimics the player's distribution
-    return RPSEngine.sampleWeighted(rec.adjProb);
+    if (!rec || !rec.adjProb) { cpuPreReason = null; return randomChoice(); }
+    const chosen = RPSEngine.sampleWeighted(rec.adjProb);
+    const pct = Math.round(rec.adjProb[chosen] * 100);
+    const probs = {};
+    RPSEngine.CHOICES.forEach(c => probs[c] = Math.round(rec.adjProb[c] * 100));
+    cpuPreReason = { type: 'playerbot', botName: cpuBotPlayerName, chosen, pct, probs, rec };
+    return chosen;
   } catch(e) {
     console.warn('[playerbot]', e);
+    cpuPreReason = null;
     return randomChoice();
   }
+}
+
+// ── Claude AI narration of CPU reasoning ──
+async function buildClaudeReason(reasonCtx, cpuChoice, playerChoice, result, sessionHistory) {
+  const NAMES_EN = { rock: 'אבן', paper: 'נייר', scissors: 'מספריים' };
+  const resultHe = result === 'draw' ? 'תיקו' : result === 'a' ? 'שחקן ניצח' : 'מחשב ניצח';
+
+  // Build context for Claude
+  let context = '';
+  if (!reasonCtx) {
+    context = 'המחשב בחר באקראי לחלוטין, אין נתונים.';
+  } else if (reasonCtx.type === 'cheat') {
+    const rec = reasonCtx.rec;
+    const streakInfo = sessionHistory.length >= 2
+      ? (() => {
+          const last3 = sessionHistory.slice(-3).map(r => NAMES_EN[r.oppChoice]);
+          return `3 בחירות אחרונות של השחקן בסשן: ${last3.join(', ')}`;
+        })()
+      : 'אין מספיק היסטוריה בסשן';
+    context = `
+מצב: מחשב חכם (ניתוח היסטוריה).
+הסתברויות שחיזה לשחקן: אבן ${reasonCtx.probs.rock}%, נייר ${reasonCtx.probs.paper}%, מספריים ${reasonCtx.probs.scissors}%.
+הכי סביר שיבחר: ${NAMES_EN[reasonCtx.predicted]} (${reasonCtx.pct}%).
+${streakInfo}
+אותות שה-engine זיהה: ${rec?.reason ? rec.reason.split('\n').filter(l=>l.trim() && !l.startsWith('→')).slice(0,3).join(' | ') : 'ניתוח בסיסי'}
+המחשב בחר: ${NAMES_EN[cpuChoice]}
+השחקן בחר: ${NAMES_EN[playerChoice]}
+תוצאה: ${resultHe}`;
+  } else if (reasonCtx.type === 'playerbot') {
+    context = `
+מצב: בוט שמחקה את ${reasonCtx.botName}.
+הסתברויות לבחירות של ${reasonCtx.botName}: אבן ${reasonCtx.probs.rock}%, נייר ${reasonCtx.probs.paper}%, מספריים ${reasonCtx.probs.scissors}%.
+הבוט בחר: ${NAMES_EN[cpuChoice]} (${reasonCtx.pct}% מהזמן ${reasonCtx.botName} בוחר כך).
+השחקן בחר: ${NAMES_EN[playerChoice]}
+תוצאה: ${resultHe}`;
+  }
+
+  try {
+    const prompt = `הקשר:\n${context}\n\nתסביר בקצרה (משפט אחד עד שניים) למה בחרת מה שבחרת.`;
+    const result = await geminiModel.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      systemInstruction: {
+        parts: [{ text: `אתה המחשב במשחק אבן נייר מספריים. אחרי כל סיבוב אתה מסביר בקצרה (משפט אחד עד שניים, עברית לא פורמלית) למה בחרת מה שבחרת — בצורה חכמה, מעט אירונית, ולפעמים מתגרה. אל תאמר "תוצאה:" או "המחשב בחר:" — רק הסבר בגוף ראשון. אל תשתמש בסימני ניקוד מיוחדים. קצר וחד.` }]
+      }
+    });
+    return result.response.text().trim() || fallbackReason(reasonCtx, cpuChoice);
+  } catch(e) {
+    console.warn('[gemini reason]', e);
+    return fallbackReason(reasonCtx, cpuChoice);
+  }
+}
+
+function fallbackReason(reasonCtx, cpuChoice) {
+  if (!reasonCtx) return 'בחרתי באקראי 🎲';
+  if (reasonCtx.type === 'cheat') {
+    const BEATS = { rock: 'scissors', paper: 'rock', scissors: 'paper' };
+    const counter = Object.keys(BEATS).find(k => BEATS[k] === reasonCtx.predicted);
+    return cpuChoice === counter
+      ? `הימרתי שתבחר ${NAMES[reasonCtx.predicted]} (${reasonCtx.pct}%), לכן בחרתי ${NAMES[cpuChoice]}`
+      : `ניתחתי ופניתי לאסטרטגיה מגוונת`;
+  }
+  if (reasonCtx.type === 'playerbot') return `${reasonCtx.botName} בוחר ${NAMES[cpuChoice]} ${reasonCtx.pct}% מהזמן`;
+  return 'בחרתי באקראי 🎲';
 }
 
 function preCpuChoice() {
@@ -1512,18 +1643,24 @@ function preCpuChoice() {
 
   if (cpuMode === 'cheat' && cPlayerName) {
     cpuPreChoice = null;
-    cheatCpuChoice(cPlayerName).then(choice => { cpuPreChoice = choice; });
+    cpuPreReason = null;
+    cheatCpuChoice(cPlayerName, cSessionHistory).then(choice => { cpuPreChoice = choice; });
   } else if (cpuMode === 'playerbot' && cpuBotPlayerName) {
     cpuPreChoice = null;
+    cpuPreReason = null;
     playerBotChoice().then(choice => { cpuPreChoice = choice; });
   } else {
     cpuPreChoice = randomChoice();
+    cpuPreReason = null;
   }
 }
 
 window.playComputer = function(choice) {
   const cpu = cpuPreChoice || randomChoice(); // use pre-rolled choice
+  const reasonCtx = cpuPreReason;
   cpuPreChoice = null;
+  cpuPreReason = null;
+
   const choicePos = getChoicePosition('c-choices', choice);
   setDisplay(document.getElementById('c-player-display'), choice);
   setDisplay(document.getElementById('c-cpu-display'), cpu);
@@ -1552,7 +1689,37 @@ window.playComputer = function(choice) {
   document.getElementById('c-wins').textContent = cScore.wins;
   document.getElementById('c-draws').textContent = cScore.draws;
   document.getElementById('c-losses').textContent = cScore.losses;
+
+  // Record into session history for streak detection
+  const outcomeForSession = r === 'draw' ? 'tie' : r === 'a' ? 'win' : 'loss';
+  cSessionHistory.push({ oppChoice: choice, outcome: outcomeForSession, timestamp: Date.now() });
+  // Keep only last 30 rounds to avoid memory bloat
+  if (cSessionHistory.length > 30) cSessionHistory.shift();
+
+  // Show CPU reasoning — ask Claude to narrate it
+  const reasonEl = document.getElementById('c-cpu-reason');
+  if (reasonEl) {
+    reasonEl.textContent = '💭 ...';
+    buildClaudeReason(reasonCtx, cpu, choice, r, cSessionHistory).then(text => {
+      if (reasonEl) reasonEl.textContent = '💭 ' + text;
+    });
+  }
+
   trackRound('computer', choice, cpu, r);
+
+  // Streak
+  const outcomeStr = r === 'draw' ? 'draw' : r === 'a' ? 'win' : 'lose';
+  updateStreak('computer', outcomeStr);
+
+  // Badges
+  sessionTotalGames++;
+  if (outcomeStr === 'win') sessionTotalWins++;
+  checkBadges(cPlayerName, {
+    totalWins: sessionTotalWins, totalGames: sessionTotalGames,
+    streak: cStreak, beatPlayerBot: cpuMode === 'playerbot' && outcomeStr === 'win'
+  });
+
+  // Training explanation removed (merged into cheat mode via c-cpu-reason)
 
   // Update playerbot context for next round (bot's perspective: player=cpu, opp=human)
   if (cpuMode === 'playerbot') {
@@ -1869,6 +2036,12 @@ function showOnlineGame() {
   document.getElementById('o-result').textContent = 'בחר את המהלך שלך';
   document.getElementById('online-choices').querySelectorAll('button').forEach(b => b.disabled = false);
   shuffleChoiceButtons('online-choices');
+  // Subscribe to chat and rematch
+  subscribeChatListener(oState.roomCode);
+  subscribeRematch(oState.roomCode);
+  document.getElementById('rematch-row')?.classList.add('hidden');
+  const cm = document.getElementById('chat-msgs'); if (cm) cm.innerHTML = '';
+  document.getElementById('o-streak').textContent = oStreak;
 }
 
 function listenRoom(code) {
@@ -1968,6 +2141,24 @@ function listenRoom(code) {
       document.getElementById('o-draws').textContent = oState.score.draws;
       document.getElementById('o-losses').textContent = oState.score.losses;
 
+      // Streak
+      const onlineOutcome = r === 'draw' ? 'draw' : ((r === 'a' && oState.myId === 'p1') || (r === 'b' && oState.myId === 'p2')) ? 'win' : 'lose';
+      updateStreak('online', onlineOutcome);
+
+      // Show rematch button
+      setTimeout(() => {
+        const rr = document.getElementById('rematch-row');
+        if (rr) rr.classList.remove('hidden');
+      }, 1000);
+
+      // Badges
+      sessionTotalGames++;
+      if (onlineOutcome === 'win') { sessionTotalWins++; }
+      checkBadges(oState.myName, {
+        totalWins: sessionTotalWins, totalGames: sessionTotalGames,
+        streak: oStreak, onlineWins: oState.score.wins
+      });
+
       // Reset for next round after delay
       setTimeout(() => {
         if (!oState.roomCode) return;
@@ -2026,13 +2217,17 @@ function leaveRoomCleanup() {
     off(roomRef);
     roomListener = null;
   }
+  if (chatUnsubscribe) { try { chatUnsubscribe(); } catch(e){} chatUnsubscribe = null; }
+  if (rematchUnsub)    { try { rematchUnsub();    } catch(e){} rematchUnsub    = null; }
   oState.roomCode = null;
   oState.myId = null;
+  oStreak = 0;
   document.getElementById('online-waiting').classList.add('hidden');
   document.getElementById('online-matchmaking').classList.add('hidden');
   document.getElementById('online-game').classList.add('hidden');
   document.getElementById('online-lobby').classList.remove('hidden');
   document.getElementById('lobby-error').classList.add('hidden');
+  document.getElementById('rematch-row')?.classList.add('hidden');
 }
 
 window.copyCode = function() {
@@ -2181,6 +2376,139 @@ function trackRoomCreate() {
 function trackRoomJoin() {
   try { logEvent(analytics, 'room_joined'); } catch(e) {}
 }
+
+// ==================== STREAK SYSTEM ====================
+let cStreak = 0, oStreak = 0;
+let sessionTotalWins = 0, sessionTotalGames = 0;
+
+function updateStreak(mode, outcome) {
+  if (mode === 'computer') {
+    if (outcome === 'win') cStreak++; else if (outcome === 'lose') cStreak = 0;
+    const el = document.getElementById('c-streak');
+    if (el) { el.textContent = cStreak; if (cStreak > 0) { el.classList.remove('streak-pop'); void el.offsetWidth; el.classList.add('streak-pop'); setTimeout(()=>el.classList.remove('streak-pop'),500); } }
+  } else if (mode === 'online') {
+    if (outcome === 'win') oStreak++; else if (outcome === 'lose') oStreak = 0;
+    const el = document.getElementById('o-streak');
+    if (el) { el.textContent = oStreak; if (oStreak > 0) { el.classList.remove('streak-pop'); void el.offsetWidth; el.classList.add('streak-pop'); setTimeout(()=>el.classList.remove('streak-pop'),500); } }
+  }
+}
+
+// ==================== BADGE SYSTEM ====================
+const BADGES_DEF = [
+  { id: 'first_win',    icon: '🥇', name: 'ניצחון ראשון!',    sub: 'ניצחת את המשחק הראשון שלך',   check: s => s.totalWins >= 1 },
+  { id: 'streak3',      icon: '🔥', name: 'רצף של 3!',         sub: '3 ניצחונות ברצף',              check: s => s.streak >= 3 },
+  { id: 'streak5',      icon: '⚡', name: 'רצף של 5!',         sub: '5 ניצחונות ברצף',              check: s => s.streak >= 5 },
+  { id: 'streak10',     icon: '💥', name: 'רצף של 10!',        sub: '10 ניצחונות ברצף!',            check: s => s.streak >= 10 },
+  { id: 'played10',     icon: '🎮', name: '10 משחקים',         sub: 'שיחקת 10 משחקים',             check: s => s.totalGames >= 10 },
+  { id: 'played50',     icon: '🎯', name: '50 משחקים',         sub: 'שיחקת 50 משחקים',             check: s => s.totalGames >= 50 },
+  { id: 'beat_bot',     icon: '🤖', name: 'ניצחת בוט שחקן!',  sub: 'הכית את הבוט של שחקן אחר',    check: s => s.beatPlayerBot },
+  { id: 'online_win',   icon: '🌐', name: 'ניצחון אונליין!',  sub: 'ניצחת במשחק אונליין',          check: s => s.onlineWins >= 1 },
+];
+
+const earnedBadges = new Set();
+
+async function checkBadges(playerName, stats) {
+  if (!playerName) return;
+  const key = playerName.trim().replace(/[^a-zA-Z0-9א-ת]/g, '_').slice(0, 40);
+  try {
+    const snap = await get(ref(db, 'players/' + key + '/badges'));
+    if (snap.exists()) Object.keys(snap.val()).forEach(b => earnedBadges.add(b));
+    for (const badge of BADGES_DEF) {
+      if (!earnedBadges.has(badge.id) && badge.check(stats)) {
+        earnedBadges.add(badge.id);
+        set(ref(db, 'players/' + key + '/badges/' + badge.id), { earned: Date.now() }).catch(()=>{});
+        showBadgeToast(badge);
+        break;
+      }
+    }
+  } catch(e) { console.warn('badge error', e); }
+}
+
+function showBadgeToast(badge) {
+  const t = document.getElementById('badge-toast');
+  document.getElementById('bt-icon').textContent = badge.icon;
+  document.getElementById('bt-name').textContent = badge.name;
+  document.getElementById('bt-sub').textContent  = badge.sub;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// ==================== CHAT ====================
+let chatUnsubscribe = null;
+
+function subscribeChatListener(roomCode) {
+  if (chatUnsubscribe) { try { chatUnsubscribe(); } catch(e){} chatUnsubscribe = null; }
+  const chatRef = ref(db, 'rooms/' + roomCode + '/chat');
+  const unsub = onValue(chatRef, (snap) => {
+    const msgs = document.getElementById('chat-msgs');
+    if (!msgs) return;
+    if (!snap.exists()) { msgs.innerHTML = ''; return; }
+    const all = Object.values(snap.val()).sort((a,b)=>a.ts-b.ts).slice(-30);
+    msgs.innerHTML = all.map(m => {
+      const isMine = m.name === oState.myName;
+      if (m.system) return `<div class="chat-msg system">${m.text}</div>`;
+      return `<div class="chat-msg ${isMine?'mine':'theirs'}"><div class="cm-name">${m.name}</div>${m.text}</div>`;
+    }).join('');
+    msgs.scrollTop = msgs.scrollHeight;
+  });
+  chatUnsubscribe = () => off(chatRef);
+}
+
+window.sendChat = async function() {
+  const inp = document.getElementById('chat-input');
+  if (!inp?.value.trim() || !oState.roomCode) return;
+  const text = inp.value.trim().slice(0, 80);
+  inp.value = '';
+  try {
+    const { push: fbPush } = await import("https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js");
+    await set(fbPush(ref(db, 'rooms/' + oState.roomCode + '/chat')), { name: oState.myName, text, ts: Date.now() });
+  } catch(e) { console.warn('chat', e); }
+};
+
+// ==================== REMATCH ====================
+let rematchUnsub = null;
+
+function subscribeRematch(roomCode) {
+  if (rematchUnsub) { try { rematchUnsub(); } catch(e){} rematchUnsub = null; }
+  const remRef = ref(db, 'rooms/' + roomCode + '/rematch');
+  onValue(remRef, async (snap) => {
+    if (!snap.exists()) return;
+    const data = snap.val();
+    const oppId = oState.myId === 'p1' ? 'p2' : 'p1';
+    if (data.p1 && data.p2) {
+      // Both agreed — reset round
+      await update(ref(db, 'rooms/' + roomCode), { 'p1/choice': null, 'p2/choice': null, rematch: null });
+      document.getElementById('rematch-row')?.classList.add('hidden');
+      document.getElementById('rematch-waiting')?.classList.add('hidden');
+      const rb = document.getElementById('rematch-btn'); if (rb) rb.removeAttribute('disabled');
+      oState.myChoice = null; oState.waiting = false;
+      setDisplay(document.getElementById('o-my-display'), null, false);
+      setDisplay(document.getElementById('o-opp-display'), null, false);
+      document.getElementById('o-result').className = 'result-banner empty';
+      document.getElementById('o-result').textContent = 'בחר את המהלך שלך';
+      document.getElementById('online-choices').querySelectorAll('button').forEach(b => b.disabled = false);
+      shuffleChoiceButtons('online-choices');
+      showToast('🔄 Rematch התחיל!');
+    } else if (data[oppId] && !data[oState.myId]) {
+      showToast('🔄 היריב מציע Rematch!');
+      document.getElementById('rematch-row')?.classList.remove('hidden');
+    }
+  });
+  rematchUnsub = () => off(remRef);
+}
+
+window.proposeRematch = async function() {
+  if (!oState.roomCode) return;
+  const btn = document.getElementById('rematch-btn');
+  const wait = document.getElementById('rematch-waiting');
+  if (btn) btn.setAttribute('disabled','true');
+  if (wait) wait.classList.remove('hidden');
+  try { await set(ref(db, 'rooms/' + oState.roomCode + '/rematch/' + oState.myId), true); }
+  catch(e) { console.warn('rematch', e); }
+};
+
+
+
 
 </script>
 </body>

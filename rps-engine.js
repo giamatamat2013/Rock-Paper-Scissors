@@ -697,12 +697,27 @@
     const adjTotal = adjProb.rock + adjProb.paper + adjProb.scissors;
     CHOICES.forEach(c => adjProb[c] /= adjTotal);
 
-    // 12. Find best prediction
+    // 12. Blend with AI (25% weight) if aiProb provided
+    const aiProb = ctx.aiProb;
+    let aiBlendNote = null;
+    if (aiProb && CHOICES.every(c => typeof aiProb[c] === 'number')) {
+      const AI_WEIGHT = 0.25;
+      CHOICES.forEach(c => {
+        adjProb[c] = adjProb[c] * (1 - AI_WEIGHT) + aiProb[c] * AI_WEIGHT;
+      });
+      const aiTop = CHOICES.reduce((a, b) => aiProb[a] > aiProb[b] ? a : b);
+      aiBlendNote = `🤖 AI (25%): ${HEB[aiTop]} (${Math.round(aiProb[aiTop] * 100)}%)`;
+      // Re-normalize after blend
+      const blendTotal = adjProb.rock + adjProb.paper + adjProb.scissors;
+      CHOICES.forEach(c => adjProb[c] /= blendTotal);
+    }
+
+    // 13. Find best prediction
     const mostLikely = CHOICES.reduce((a, b) => adjProb[a] > adjProb[b] ? a : b);
     const beat       = BEATS[mostLikely];
     const confidence = Math.round(adjProb[mostLikely] * 100);
 
-    // 13. Build reason text
+    // 14. Build reason text
     const lines = [];
     lines.push(`${profile.name || 'היריב'} בוחר ${HEB[mostLikely]} ${Math.round(baseProb[mostLikely] * 100)}% בסיס`);
     if (influence?.posWeight > 0.01 && Object.values(ctxPositions).some(Boolean))
@@ -710,6 +725,7 @@
     if (influence?.colorWeight > 0.01 && Object.keys(ctxColors).length)
       lines.push(`🎨 צבע: ${Math.round(influence.colorWeight * 100)}%`);
     lines.push(...reasonLines);
+    if (aiBlendNote) lines.push(aiBlendNote);
     lines.push(`→ שחק ${HEB[beat]}`);
 
     return { beat, mostLikely, confidence, reason: lines.join('\n'), adjProb, wsEffect, lsEffect };
