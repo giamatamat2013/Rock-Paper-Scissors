@@ -25,6 +25,7 @@
       }
     },
     "rooms": {
+      ".read": true,
       "$roomCode": {
         ".read": true,
         ".write": "newData.exists() || data.exists() || (data.child('lastActivity').exists() && (now - data.child('lastActivity').val()) > 900000)",

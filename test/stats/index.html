@@ -325,6 +325,48 @@ body::after {
 
 /* ── DIVIDER ── */
 .divider { height:1px; background:var(--border); margin:4px 0; }
+
+/* ── VIEW CHIPS ── */
+.view-chips { display:flex; gap:6px; }
+.view-chip { padding:5px 14px; border-radius:20px; border:1px solid var(--border); background:var(--bg); font-size:0.72rem; font-family:'IBM Plex Mono',monospace; color:var(--dim); cursor:pointer; transition:all 0.15s; }
+.view-chip.active { background:rgba(0,255,136,0.1); border-color:var(--green); color:var(--green); }
+.view-chip:hover { border-color:var(--dim); color:var(--text); }
+.csv-btn { padding:6px 14px; border-radius:20px; background:transparent; border:1px solid var(--green); font-size:0.72rem; font-family:'IBM Plex Mono',monospace; color:var(--green); cursor:pointer; transition:all 0.15s; white-space:nowrap; }
+.csv-btn:hover { background:rgba(0,255,136,0.1); }
+
+/* ── COMPARE ── */
+.cmp-header { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
+.cmp-vs { font-family:'IBM Plex Mono',monospace; font-weight:700; color:var(--dim); font-size:1rem; flex-shrink:0; }
+.cmp-pick { flex:1; position:relative; }
+.cmp-pick input { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:8px 12px; color:var(--text); font-family:'Heebo',sans-serif; font-size:0.9rem; }
+.cmp-pick input:focus { outline:none; border-color:var(--green); }
+.cmp-ac { position:absolute; top:calc(100% + 4px); right:0; left:0; background:#13131f; border:1px solid var(--green); border-radius:8px; z-index:50; overflow:hidden; max-height:180px; overflow-y:auto; display:none; }
+.cmp-ac.show { display:block; }
+.h2h-card { display:grid; grid-template-columns:1fr auto 1fr; gap:12px; align-items:center; margin-bottom:12px; }
+.h2h-player { text-align:center; }
+.h2h-name { font-weight:700; font-size:0.95rem; margin-bottom:4px; }
+.h2h-score { font-family:'IBM Plex Mono',monospace; font-size:2.5rem; font-weight:700; line-height:1; }
+.h2h-score.wins { color:var(--green); }
+.h2h-score.losses { color:var(--red); }
+.h2h-mid { text-align:center; }
+.h2h-draws { font-family:'IBM Plex Mono',monospace; font-size:0.82rem; color:var(--yellow); }
+.h2h-total { font-size:0.65rem; color:var(--dim); font-family:'IBM Plex Mono',monospace; margin-top:4px; }
+.winrate-canvas { width:100%; height:120px; display:block; }
+
+/* ── MATRIX ── */
+.mx-table { border-collapse:collapse; width:100%; font-family:'IBM Plex Mono',monospace; font-size:0.68rem; }
+.mx-table th { background:var(--bg); color:var(--dim); padding:6px 8px; text-align:center; border:1px solid var(--border); white-space:nowrap; max-width:80px; overflow:hidden; text-overflow:ellipsis; }
+.mx-table td { padding:5px 8px; text-align:center; border:1px solid var(--border); transition:background 0.1s; }
+.mx-table .mx-row-header { font-weight:700; color:var(--text); text-align:right; white-space:nowrap; max-width:80px; overflow:hidden; text-overflow:ellipsis; }
+.mx-win { color:var(--green); font-weight:700; }
+.mx-loss { color:var(--red); }
+.mx-draw { color:var(--yellow); }
+.mx-self { background:rgba(255,255,255,0.03); color:var(--dim); }
+.mx-heat-0 { background:transparent; }
+.mx-heat-1 { background:rgba(0,255,136,0.05); }
+.mx-heat-2 { background:rgba(0,255,136,0.12); }
+.mx-heat-3 { background:rgba(0,255,136,0.22); }
+.mx-heat-4 { background:rgba(0,255,136,0.35); }
 </style>
 </head>
 <body>
@@ -354,6 +396,12 @@ body::after {
     <div class="chip"        id="chip-phys" onclick="setModeFilter('local')">🤝 פיזי</div>
   </div>
   <button class="clear-btn" onclick="clearFilter()">× נקה</button>
+  <div class="view-chips">
+    <div class="view-chip active" id="view-main"    onclick="setView('main')">📊 ראשי</div>
+    <div class="view-chip"        id="view-compare" onclick="setView('compare')">⚔️ השוואה</div>
+    <div class="view-chip"        id="view-matrix"  onclick="setView('matrix')">🏆 מטריצה</div>
+  </div>
+  <button class="csv-btn" onclick="exportCSV()">⬇️ CSV</button>
 </div>
 
 <!-- PAGE CONTENT -->
@@ -390,6 +438,17 @@ let allPlayers  = [];
 let filterName  = '';
 let filterMode  = 'all';
 let acHighlight = -1;
+let viewMode    = 'main';
+let cmpA = '', cmpB = '';
+
+window.setView = function(mode) {
+  viewMode = mode;
+  ['main','compare','matrix'].forEach(v => {
+    const el = document.getElementById('view-' + v);
+    if (el) el.classList.toggle('active', v === mode);
+  });
+  render();
+};
 
 function el(id) { return document.getElementById(id); }
 function showToast(msg) {
@@ -498,6 +557,9 @@ window.clearFilter = function() {
 
 // ── MAIN RENDER ──
 function render() {
+  if (viewMode === 'compare') { renderCompareView(); return; }
+  if (viewMode === 'matrix')  { renderMatrixView();  return; }
+
   const games   = getFilteredGames();
   const page    = el('page');
   const isPlayer = !!filterName;
@@ -550,6 +612,7 @@ function render() {
 
   // Draw canvases after DOM insert
   drawTimeline(games, pgames, filterName);
+  if (pgames) drawWinRateChart(pgames);
 }
 
 // ── OVERVIEW ──
@@ -598,6 +661,7 @@ function renderOverview(games, pgames, name) {
       <div class="card-header">טיימליין משחקים</div>
       <div class="card-body" style="padding:10px 16px">
         <canvas class="timeline-canvas" id="timeline-canvas"></canvas>
+        ${pgames ? `<canvas class="winrate-canvas" id="winrate-canvas" style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px;"></canvas>` : ''}
       </div>
     </div>
   `;
@@ -1038,6 +1102,289 @@ function drawTimeline(games, pgames, name) {
   ctx.fillText(new Date(minT).toLocaleDateString('he-IL'),pad.l,H-6);
   ctx.textAlign='right';
   ctx.fillText(new Date(maxT).toLocaleDateString('he-IL'),W-pad.r,H-6);
+}
+
+// ── WIN RATE OVER TIME ──
+function drawWinRateChart(pgames) {
+  const canvas = document.getElementById('winrate-canvas');
+  if (!canvas) return;
+  const sorted = pgames.filter(g=>g.timestamp && g.outcome).sort((a,b)=>a.timestamp-b.timestamp);
+  if (sorted.length < 4) return;
+  const W = canvas.offsetWidth||320, H=100;
+  canvas.width=W; canvas.height=H;
+  const ctx = canvas.getContext('2d');
+  const BINS = Math.min(sorted.length, 20);
+  const minT = sorted[0].timestamp, maxT = sorted[sorted.length-1].timestamp;
+  const binSize = (maxT-minT)/BINS || 1;
+  const bins = Array.from({length:BINS}, () => ({w:0,t:0}));
+  sorted.forEach(g => {
+    const b = Math.min(Math.floor((g.timestamp-minT)/binSize), BINS-1);
+    if (g.outcome==='win') bins[b].w++;
+    bins[b].t++;
+  });
+  const rates = bins.map(b => b.t>=2 ? b.w/b.t : null);
+  // Fill nulls with neighbors
+  for (let i=0;i<rates.length;i++) { if (rates[i]===null) rates[i] = rates[i-1]??rates[i+1]??0.33; }
+  const pad={l:8,r:8,t:8,b:20};
+  const gW=W-pad.l-pad.r, gH=H-pad.t-pad.b;
+  const bW=gW/BINS;
+  // 50% line
+  ctx.strokeStyle='rgba(255,255,255,0.06)'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
+  const y50 = pad.t + gH*(1-0.5);
+  ctx.beginPath(); ctx.moveTo(pad.l,y50); ctx.lineTo(pad.l+gW,y50); ctx.stroke();
+  ctx.setLineDash([]);
+  // Gradient fill
+  const grad=ctx.createLinearGradient(0,pad.t,0,pad.t+gH);
+  grad.addColorStop(0,'rgba(77,255,180,0.3)'); grad.addColorStop(1,'rgba(77,255,180,0.02)');
+  ctx.beginPath(); ctx.moveTo(pad.l,pad.t+gH);
+  rates.forEach((r,i)=>{ const x=pad.l+i*bW+bW/2; const y=pad.t+gH-r*gH; if(i===0) ctx.lineTo(x,y); else ctx.lineTo(x,y); });
+  ctx.lineTo(pad.l+gW,pad.t+gH); ctx.closePath(); ctx.fillStyle=grad; ctx.fill();
+  // Line
+  ctx.beginPath();
+  rates.forEach((r,i)=>{ const x=pad.l+i*bW+bW/2; const y=pad.t+gH-r*gH; if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); });
+  ctx.strokeStyle='#4dffb4'; ctx.lineWidth=2; ctx.setLineDash([]); ctx.stroke();
+  // Labels
+  ctx.fillStyle='#444466'; ctx.font='9px IBM Plex Mono'; ctx.textAlign='left';
+  ctx.fillText('Win% לאורך זמן', pad.l, H-4);
+  ctx.textAlign='right';
+  const lastR = rates[rates.length-1];
+  ctx.fillStyle = lastR>=0.5?'#4dffb4':'#ff3355';
+  ctx.fillText(Math.round(lastR*100)+'%', W-pad.r, H-4);
+}
+
+// ── COMPARE VIEW ──
+function renderCompareView() {
+  const page = el('page');
+  const gA = cmpA ? getPlayerGames(allGames, cmpA) : [];
+  const gB = cmpB ? getPlayerGames(allGames, cmpB) : [];
+
+  // H2H games only
+  const h2h = cmpA && cmpB ? allGames.filter(g=>(g.p1===cmpA&&g.p2===cmpB)||(g.p1===cmpB&&g.p2===cmpA)) : [];
+  const aWins  = h2h.filter(g=>(g.p1===cmpA&&g.result==='p1_win')||(g.p2===cmpA&&g.result==='p2_win')).length;
+  const bWins  = h2h.filter(g=>(g.p1===cmpB&&g.result==='p1_win')||(g.p2===cmpB&&g.result==='p2_win')).length;
+  const draws  = h2h.filter(g=>g.result==='draw').length;
+
+  const pickerA = buildCmpPicker('cmpA', cmpA, 'שחקן A');
+  const pickerB = buildCmpPicker('cmpB', cmpB, 'שחקן B');
+
+  let h2hHTML = '';
+  if (cmpA && cmpB) {
+    if (!h2h.length) {
+      h2hHTML = `<div class="card"><div class="card-body"><div class="empty" style="padding:20px"><div class="icon">🤷</div><p>אין משחקים ישירים בין ${cmpA} ל-${cmpB}</p></div></div></div>`;
+    } else {
+      const aPct = h2h.length ? Math.round(aWins/h2h.length*100) : 0;
+      const bPct = h2h.length ? Math.round(bWins/h2h.length*100) : 0;
+      h2hHTML = `
+        <div class="card">
+          <div class="card-header">תוצאה ישירה <span class="badge">${h2h.length} משחקים</span></div>
+          <div class="card-body">
+            <div class="h2h-card">
+              <div class="h2h-player">
+                <div class="h2h-name" style="color:var(--green)">${cmpA}</div>
+                <div class="h2h-score wins">${aWins}</div>
+                <div style="font-size:0.7rem;color:var(--dim);font-family:'IBM Plex Mono',monospace;">${aPct}%</div>
+              </div>
+              <div class="h2h-mid">
+                <div class="h2h-draws">${draws} תיקו</div>
+                <div class="h2h-total">${h2h.length} משחקים</div>
+              </div>
+              <div class="h2h-player">
+                <div class="h2h-name" style="color:var(--blue)">${cmpB}</div>
+                <div class="h2h-score ${bWins>aWins?'wins':'losses'}">${bWins}</div>
+                <div style="font-size:0.7rem;color:var(--dim);font-family:'IBM Plex Mono',monospace;">${bPct}%</div>
+              </div>
+            </div>
+            <div style="margin-top:12px;display:flex;gap:0;height:8px;border-radius:8px;overflow:hidden;">
+              <div style="background:var(--green);width:${aPct}%;transition:width 0.8s"></div>
+              <div style="background:var(--yellow);width:${h2h.length?Math.round(draws/h2h.length*100):0}%;"></div>
+              <div style="background:var(--blue);flex:1;"></div>
+            </div>
+          </div>
+        </div>
+        ${renderCmpChoices(cmpA, cmpB, h2h)}
+        ${renderCmpStrategies(cmpA, cmpB, gA, gB)}`;
+    }
+  }
+
+  page.innerHTML = `
+    <div class="section-title">בחר שני שחקנים להשוואה</div>
+    <div class="cmp-header">
+      ${pickerA}
+      <div class="cmp-vs">VS</div>
+      ${pickerB}
+    </div>
+    ${h2hHTML || (cmpA||cmpB ? '<div class="empty"><div class="icon">👆</div><p>בחר שחקן שני להמשך</p></div>' : '<div class="empty"><div class="icon">⚔️</div><p>בחר שני שחקנים לראות את ההשוואה ביניהם</p></div>')}
+  `;
+  // Bind autocomplete after DOM
+  ['cmpA','cmpB'].forEach(id => {
+    const inp = document.getElementById('inp-'+id);
+    if (inp) {
+      inp.addEventListener('input', () => updateCmpAC(id));
+      inp.addEventListener('keydown', (e) => cmpKeydown(e, id));
+    }
+  });
+}
+
+function buildCmpPicker(id, currentVal, placeholder) {
+  return `<div class="cmp-pick">
+    <input type="text" id="inp-${id}" value="${currentVal}" placeholder="${placeholder}" autocomplete="off">
+    <div class="cmp-ac" id="ac-${id}"></div>
+  </div>`;
+}
+
+function updateCmpAC(id) {
+  const inp = document.getElementById('inp-'+id);
+  const ac  = document.getElementById('ac-'+id);
+  if (!inp || !ac) return;
+  const val = inp.value.trim().toLowerCase();
+  if (!val) { ac.classList.remove('show'); return; }
+  const matches = allPlayers.filter(p=>p.toLowerCase().includes(val)).slice(0,6);
+  if (!matches.length) { ac.classList.remove('show'); return; }
+  ac.innerHTML = matches.map(p=>`<div class="ac-item" onmousedown="pickCmp('${id}','${p.replace(/'/g,"\\'")}')">${p}</div>`).join('');
+  ac.classList.add('show');
+}
+
+function cmpKeydown(e, id) {
+  if (e.key === 'Enter') {
+    const val = document.getElementById('inp-'+id)?.value.trim();
+    if (val) pickCmp(id, val);
+  }
+}
+
+window.pickCmp = function(id, name) {
+  if (id === 'cmpA') cmpA = name; else cmpB = name;
+  const inp = document.getElementById('inp-'+id);
+  const ac  = document.getElementById('ac-'+id);
+  if (inp) inp.value = name;
+  if (ac)  ac.classList.remove('show');
+  render();
+};
+
+document.addEventListener('click', e=>{
+  if (!e.target.closest('.cmp-pick')) document.querySelectorAll('.cmp-ac').forEach(a=>a.classList.remove('show'));
+});
+
+function renderCmpChoices(nameA, nameB, h2h) {
+  const statsFor = (name) => {
+    const cnt = {rock:0,paper:0,scissors:0};
+    h2h.forEach(g => {
+      const c = g.p1===name ? g.p1Choice : g.p2Choice;
+      if (cnt[c]!==undefined) cnt[c]++;
+    });
+    const tot = cnt.rock+cnt.paper+cnt.scissors||1;
+    return cnt;
+  };
+  const cA=statsFor(nameA), cB=statsFor(nameB);
+  const EMOJI_MAP={rock:'✊',paper:'📄',scissors:'✂️'}, HEB_MAP={rock:'אבן',paper:'נייר',scissors:'מספריים'};
+  const rowsA = ['rock','paper','scissors'].map(c=>`
+    <div class="choice-row">
+      <div class="choice-emoji">${EMOJI_MAP[c]}</div>
+      <div class="choice-name ${c}">${HEB_MAP[c]}</div>
+      <div class="bar-wrap"><div class="bar ${c}" style="width:${cA[c]/(Math.max(cA.rock,cA.paper,cA.scissors)||1)*100}%"></div></div>
+      <div class="bar-pct ${c}">${cA[c]}</div>
+    </div>`).join('');
+  const rowsB = ['rock','paper','scissors'].map(c=>`
+    <div class="choice-row">
+      <div class="choice-emoji">${EMOJI_MAP[c]}</div>
+      <div class="choice-name ${c}">${HEB_MAP[c]}</div>
+      <div class="bar-wrap"><div class="bar ${c}" style="width:${cB[c]/(Math.max(cB.rock,cB.paper,cB.scissors)||1)*100}%"></div></div>
+      <div class="bar-pct ${c}">${cB[c]}</div>
+    </div>`).join('');
+  return `<div class="grid-2">
+    <div class="card"><div class="card-header" style="color:var(--green)">${nameA} — בחירות</div><div class="card-body">${rowsA}</div></div>
+    <div class="card"><div class="card-header" style="color:var(--blue)">${nameB} — בחירות</div><div class="card-body">${rowsB}</div></div>
+  </div>`;
+}
+
+function renderCmpStrategies(nameA, nameB, gA, gB) {
+  const wrA = gA.length ? Math.round(gA.filter(g=>g.outcome==='win').length/gA.length*100) : 0;
+  const wrB = gB.length ? Math.round(gB.filter(g=>g.outcome==='win').length/gB.length*100) : 0;
+  const favA = ['rock','paper','scissors'].reduce((a,b)=>
+    gA.filter(g=>g.myChoice===a).length>gA.filter(g=>g.myChoice===b).length?a:b,'rock');
+  const favB = ['rock','paper','scissors'].reduce((a,b)=>
+    gB.filter(g=>g.myChoice===a).length>gB.filter(g=>g.myChoice===b).length?a:b,'rock');
+  const EMOJI_MAP={rock:'✊',paper:'📄',scissors:'✂️'};
+  return `<div class="grid-2">
+    <div class="stat-box"><div class="val" style="color:${wrA>=50?'var(--green)':'var(--red)'}">${wrA}%</div><div class="lbl">${nameA} אחוז ניצחון</div></div>
+    <div class="stat-box"><div class="val" style="color:${wrB>=50?'var(--green)':'var(--red)'}">${wrB}%</div><div class="lbl">${nameB} אחוז ניצחון</div></div>
+    <div class="stat-box"><div class="val">${EMOJI_MAP[favA]}</div><div class="lbl">${nameA} בחירה נפוצה</div></div>
+    <div class="stat-box"><div class="val">${EMOJI_MAP[favB]}</div><div class="lbl">${nameB} בחירה נפוצה</div></div>
+  </div>`;
+}
+
+// ── MATRIX VIEW ──
+function renderMatrixView() {
+  const page = el('page');
+  const stats = {};
+  allGames.forEach(g => {
+    const handle = (name, opp, result, mySlot) => {
+      if (!name||name==='unknown') return;
+      if (!stats[name]) stats[name] = {name, games:0, wins:0, vs:{}};
+      if (!stats[name].vs[opp]) stats[name].vs[opp] = {w:0,d:0,l:0};
+      stats[name].games++;
+      const win = (mySlot==='p1'&&result==='p1_win')||(mySlot==='p2'&&result==='p2_win');
+      const draw = result==='draw';
+      if (win) { stats[name].wins++; stats[name].vs[opp].w++; }
+      else if (draw) stats[name].vs[opp].d++;
+      else stats[name].vs[opp].l++;
+    };
+    handle(g.p1, g.p2, g.result, 'p1');
+    handle(g.p2, g.p1, g.result, 'p2');
+  });
+
+  const players = Object.values(stats).filter(s=>s.games>=2).sort((a,b)=>b.wins-a.wins).slice(0,12);
+  if (players.length < 2) {
+    page.innerHTML = `<div class="empty"><div class="icon">🏆</div><p>צריך לפחות 2 שחקנים עם משחקים לייצר מטריצה</p></div>`;
+    return;
+  }
+
+  const names = players.map(p=>p.name);
+  const heatClass = wr => wr>=70?'mx-heat-4':wr>=55?'mx-heat-3':wr>=45?'mx-heat-2':wr>=30?'mx-heat-1':'mx-heat-0';
+
+  const headerRow = `<tr><th>שחקן</th>${names.map(n=>`<th title="${n}">${n.length>8?n.slice(0,7)+'…':n}</th>`).join('')}<th>W%</th></tr>`;
+  const bodyRows = players.map(p => {
+    const cells = names.map(opp => {
+      if (opp === p.name) return `<td class="mx-self">—</td>`;
+      const v = p.vs[opp];
+      if (!v || (v.w+v.d+v.l)===0) return `<td class="mx-heat-0" style="color:var(--dim)">—</td>`;
+      const tot = v.w+v.d+v.l;
+      const wr  = Math.round(v.w/tot*100);
+      return `<td class="${heatClass(wr)}" title="${v.w}W/${v.d}D/${v.l}L"><span class="mx-win">${v.w}</span>/<span class="mx-draw">${v.d}</span>/<span class="mx-loss">${v.l}</span></td>`;
+    }).join('');
+    const wr = p.games ? Math.round(p.wins/p.games*100) : 0;
+    return `<tr><th class="mx-row-header" title="${p.name}">${p.name.length>10?p.name.slice(0,9)+'…':p.name}</th>${cells}<td style="font-family:'IBM Plex Mono',monospace;font-size:0.7rem;color:${wr>=50?'var(--green)':'var(--dim)'}">${wr}%</td></tr>`;
+  }).join('');
+
+  page.innerHTML = `
+    <div class="section-title">מטריצת תוצאות — ניצחון/תיקו/הפסד לכל זוג שחקנים</div>
+    <div class="card">
+      <div class="card-header">טבלת ניצחונות <span class="badge">${players.length} שחקנים</span></div>
+      <div class="card-body" style="overflow-x:auto;padding:8px;">
+        <table class="mx-table"><thead>${headerRow}</thead><tbody>${bodyRows}</tbody></table>
+        <div style="margin-top:8px;font-size:0.62rem;color:var(--dim);font-family:'IBM Plex Mono',monospace;">
+          תא = W ניצחונות / D תיקו / L הפסדות · ירוק = אחוז ניצחון גבוה יותר
+        </div>
+      </div>
+    </div>`;
+}
+
+// ── CSV EXPORT ──
+function exportCSV() {
+  const games = getFilteredGames();
+  if (!games.length) { showToast('אין נתונים לייצוא'); return; }
+  const headers = ['תאריך','מצב','שחקן1','שחקן2','בחירה1','בחירה2','תוצאה','מנצח'];
+  const rows = games.map(g => {
+    const date = g.timestamp ? new Date(g.timestamp).toLocaleDateString('he-IL') : '';
+    const mode = g.mode==='online'?'אפליקציה':g.mode==='local'?'מקומי':'מחשב';
+    const res  = g.result==='draw'?'תיקו':g.result==='p1_win'?'שחקן1 ניצח':'שחקן2 ניצח';
+    return [date, mode, g.p1||'', g.p2||'', g.p1Choice||'', g.p2Choice||'', res, g.winner||''];
+  });
+  const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a'); a.href=url; a.download='rps-stats.csv'; a.click();
+  URL.revokeObjectURL(url);
+  showToast(`✓ יוצאו ${games.length} משחקים`);
 }
 
 load();
