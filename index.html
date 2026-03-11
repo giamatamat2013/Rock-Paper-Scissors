@@ -638,6 +638,17 @@
         <button class="btn btn-primary" id="c-mode-normal" onclick="setCpuMode('normal')" style="flex:1;background:linear-gradient(135deg,var(--accent),#c9184a);">🎲 מחשב רגיל</button>
         <button class="btn btn-secondary" id="c-mode-cheat" onclick="setCpuMode('cheat')" style="flex:1;">🧠 מחשב חכם</button>
       </div>
+      <div style="margin-top:8px;">
+        <button class="btn btn-secondary" id="c-mode-playerbot" onclick="setCpuMode('playerbot')" style="width:100%;">👤 נגד בוט שחקן</button>
+      </div>
+      <div id="c-playerbot-wrap" class="hidden" style="margin-top:10px;">
+        <div style="font-size:0.78rem;color:var(--muted);margin-bottom:5px;font-weight:600;">בחר שחקן לחקות:</div>
+        <div class="autocomplete-wrap">
+          <input type="text" class="input-field" id="c-botplayer-input" placeholder="הכנס שם שחקן" maxlength="16" autocomplete="off" oninput="acInput(this,'c-botplayer-ac')" onkeydown="acKeydown(event,'c-botplayer-ac','c-botplayer-input')">
+          <div class="autocomplete-list hidden" id="c-botplayer-ac"></div>
+        </div>
+        <div class="field-error" id="c-botplayer-err">נא לבחור שחקן</div>
+      </div>
       <div id="c-cheat-hint" class="hidden" style="font-size:0.75rem;color:var(--accent3);margin-top:6px;text-align:center;">מחשב ישתמש בנתוני Firebase כדי לנצח אותך</div>
       <button class="btn btn-primary mt-12" style="width:100%" onclick="startComputerGame()">▶ התחל משחק</button>
     </div>
@@ -660,6 +671,7 @@
         <div class="player-side">
           <div class="choice-display" id="c-cpu-display">❓</div>
           <div class="player-name" id="c-cpu-label">מחשב</div>
+          <div class="player-name" id="c-cpu-sublabel" style="font-size:0.65rem;color:var(--muted);display:none;"></div>
         </div>
       </div>
 
@@ -950,7 +962,9 @@ let allPlayers = []; // cached from Firebase
 let cScore = { wins: 0, losses: 0, draws: 0 };
 let cPlayerName = null;
 let cpuPreChoice = null; // CPU decides BEFORE player clicks
-let cpuMode = 'normal'; // 'normal' | 'cheat'
+let cpuMode = 'normal'; // 'normal' | 'cheat' | 'playerbot'
+let cpuBotPlayerName = null; // For playerbot mode
+let cpuBotLastRound = null;  // Track last round for playerbot context
 
 // Local state
 let lState = { phase: 'p1', p1Choice: null, p2Choice: null };
@@ -1343,6 +1357,21 @@ window.startComputerGame = function() {
   errEl.textContent = 'נא להכניס שם';
   errEl.classList.remove('show');
   inputEl.classList.remove('input-error');
+
+  // Validate playerbot selection
+  if (cpuMode === 'playerbot') {
+    const botName = document.getElementById('c-botplayer-input').value.trim();
+    const botErr  = document.getElementById('c-botplayer-err');
+    if (!botName || !allPlayers.includes(botName)) {
+      botErr.classList.add('show');
+      document.getElementById('c-botplayer-input').classList.add('input-error');
+      return;
+    }
+    botErr.classList.remove('show');
+    document.getElementById('c-botplayer-input').classList.remove('input-error');
+    cpuBotPlayerName = botName;
+  }
+
   cPlayerName = name;
   savePlayer(name);
   cScore = { wins: 0, losses: 0, draws: 0 };
@@ -1357,12 +1386,25 @@ window.startComputerGame = function() {
   setDisplay(document.getElementById('c-cpu-display'), null, false);
   document.getElementById('c-name-setup').classList.add('hidden');
   document.getElementById('c-game').classList.remove('hidden');
-  // Show cheat badge on CPU label
-  const cpuLabel = document.getElementById('c-cpu-label');
-  cpuLabel.textContent = cpuMode === 'cheat' ? '🧠 מחשב חכם' : 'מחשב';
-  cpuLabel.style.color = cpuMode === 'cheat' ? 'var(--accent3)' : '';
+  // Show label on CPU side
+  const cpuLabel    = document.getElementById('c-cpu-label');
+  const cpuSublabel = document.getElementById('c-cpu-sublabel');
+  if (cpuMode === 'cheat') {
+    cpuLabel.textContent = '🧠 מחשב חכם';
+    cpuLabel.style.color = 'var(--accent3)';
+    cpuSublabel.style.display = 'none';
+  } else if (cpuMode === 'playerbot') {
+    cpuLabel.textContent = '👤 ' + cpuBotPlayerName;
+    cpuLabel.style.color = '#aa88ff';
+    cpuSublabel.textContent = 'בוט שחקן';
+    cpuSublabel.style.display = 'block';
+  } else {
+    cpuLabel.textContent = 'מחשב';
+    cpuLabel.style.color = '';
+    cpuSublabel.style.display = 'none';
+  }
   shuffleChoiceButtons('c-choices');
-  preCpuChoice(); // CPU decides its first move before player sees the board
+  preCpuChoice();
 };
 
 window.resetComputerMode = function() {
@@ -1371,6 +1413,8 @@ window.resetComputerMode = function() {
   document.getElementById('c-name-input').value = '';
   cPlayerName = null;
   cpuPreChoice = null;
+  cpuBotPlayerName = null;
+  cpuBotLastRound = null;
   setCpuMode('normal');
 };
 
@@ -1378,26 +1422,41 @@ window.resetComputerMode = function() {
 // ==================== CPU CHEAT MODE ====================
 window.setCpuMode = function(mode) {
   cpuMode = mode;
-  const normalBtn = document.getElementById('c-mode-normal');
-  const cheatBtn  = document.getElementById('c-mode-cheat');
-  const hint      = document.getElementById('c-cheat-hint');
+  const normalBtn    = document.getElementById('c-mode-normal');
+  const cheatBtn     = document.getElementById('c-mode-cheat');
+  const botBtn       = document.getElementById('c-mode-playerbot');
+  const hint         = document.getElementById('c-cheat-hint');
+  const botWrap      = document.getElementById('c-playerbot-wrap');
+
+  // Reset all
+  normalBtn.className = 'btn btn-secondary';
+  normalBtn.style.cssText = 'flex:1;';
+  cheatBtn.className = 'btn btn-secondary';
+  cheatBtn.style.cssText = 'flex:1;';
+  botBtn.className = 'btn btn-secondary';
+  botBtn.style.cssText = 'width:100%;margin-top:0;';
+  hint.classList.add('hidden');
+  botWrap.classList.add('hidden');
+
   if (mode === 'cheat') {
-    normalBtn.className = 'btn btn-secondary';
-    normalBtn.style.flex = '1';
     cheatBtn.className = 'btn btn-primary';
     cheatBtn.style.cssText = 'flex:1;background:linear-gradient(135deg,var(--accent3),#e6a800);color:#000;';
     hint.classList.remove('hidden');
+  } else if (mode === 'playerbot') {
+    botBtn.className = 'btn btn-primary';
+    botBtn.style.cssText = 'width:100%;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:white;box-shadow:0 4px 14px rgba(124,58,237,0.35);';
+    botWrap.classList.remove('hidden');
   } else {
     normalBtn.className = 'btn btn-primary';
     normalBtn.style.cssText = 'flex:1;background:linear-gradient(135deg,var(--accent),#c9184a);';
-    cheatBtn.className = 'btn btn-secondary';
-    cheatBtn.style.cssText = 'flex:1;';
-    hint.classList.add('hidden');
   }
 };
 
 // Compute what the CPU should play based on player's historical choices
 // ── CPU CHEAT: uses the same RPSEngine as cheat/index.html ──
+// The CPU plays each choice with probability = player's win% with that choice.
+// i.e. if player's win% with paper is 40% (→ opponent plays rock 40%),
+//      the CPU plays paper 40% of the time.
 async function cheatCpuChoice(playerName) {
   try {
     const snap = await get(ref(db, 'games'));
@@ -1407,9 +1466,41 @@ async function cheatCpuChoice(playerName) {
     const profile     = RPSEngine.buildProfile(allGamesRaw, playerName, 'local');
     const rec         = RPSEngine.buildRecommendation(profile, {});
 
-    return rec ? rec.beat : randomChoice();
+    if (!rec || !rec.adjProb) return randomChoice();
+
+    // Build CPU distribution: CPU plays X with prob = player's win% with X
+    // player's win% with X = adjProb[BEATEN_BY[X]]  (X wins against BEATEN_BY[X])
+    const BEATEN_BY = RPSEngine.BEATEN_BY;
+    const cpuDist = {
+      rock:     rec.adjProb[BEATEN_BY.rock],     // adjProb[scissors]
+      paper:    rec.adjProb[BEATEN_BY.paper],    // adjProb[rock]
+      scissors: rec.adjProb[BEATEN_BY.scissors], // adjProb[paper]
+    };
+
+    return RPSEngine.sampleWeighted(cpuDist);
   } catch(e) {
     console.warn('[cheat cpu]', e);
+    return randomChoice();
+  }
+}
+
+// ── Player Bot: plays like a specific player using RPSEngine ──
+async function playerBotChoice() {
+  try {
+    const snap = await get(ref(db, 'games'));
+    if (!snap.exists()) return randomChoice();
+    const allGamesRaw = Object.entries(snap.val()).map(([id, g]) => ({ id, ...g }));
+    const profile = RPSEngine.buildProfile(allGamesRaw, cpuBotPlayerName, null);
+    // Inject lastRound context so the bot reacts to what happened
+    if (cpuBotLastRound) {
+      profile.lastRound = cpuBotLastRound;
+    }
+    const rec = RPSEngine.buildRecommendation(profile, {});
+    if (!rec || !rec.adjProb) return randomChoice();
+    // Sample from adjProb so the bot mimics the player's distribution
+    return RPSEngine.sampleWeighted(rec.adjProb);
+  } catch(e) {
+    console.warn('[playerbot]', e);
     return randomChoice();
   }
 }
@@ -1420,10 +1511,11 @@ function preCpuChoice() {
   cpuEl.className = 'choice-display';
 
   if (cpuMode === 'cheat' && cPlayerName) {
-    cpuPreChoice = null; // will be set async
-    cheatCpuChoice(cPlayerName).then(choice => {
-      cpuPreChoice = choice;
-    });
+    cpuPreChoice = null;
+    cheatCpuChoice(cPlayerName).then(choice => { cpuPreChoice = choice; });
+  } else if (cpuMode === 'playerbot' && cpuBotPlayerName) {
+    cpuPreChoice = null;
+    playerBotChoice().then(choice => { cpuPreChoice = choice; });
   } else {
     cpuPreChoice = randomChoice();
   }
@@ -1461,6 +1553,17 @@ window.playComputer = function(choice) {
   document.getElementById('c-draws').textContent = cScore.draws;
   document.getElementById('c-losses').textContent = cScore.losses;
   trackRound('computer', choice, cpu, r);
+
+  // Update playerbot context for next round (bot's perspective: player=cpu, opp=human)
+  if (cpuMode === 'playerbot') {
+    // The bot "won" if the cpu won (r === 'b'), "lost" if player won (r === 'a')
+    const botOutcome = r === 'draw' ? 'tie' : r === 'b' ? 'win' : 'loss';
+    cpuBotLastRound = {
+      oppChoice: cpu,       // what the bot played
+      outcome: botOutcome,
+      timestamp: Date.now()
+    };
+  }
 
   saveGame({
     mode: 'computer',

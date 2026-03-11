@@ -867,7 +867,86 @@
     font-family: 'IBM Plex Mono', monospace;
   }
 
-  /* ── PRESET COLOR SWATCHES ── */
+  /* ── WIN PERCENTAGE CARD ── */
+  .winpct-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+
+  .winpct-header {
+    padding: 10px 16px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .winpct-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 16px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+  .winpct-row:last-child { border-bottom: none; }
+
+  .winpct-bg {
+    position: absolute;
+    inset: 0;
+    opacity: 0.07;
+    border-radius: 0;
+    transition: width 0.6s ease;
+  }
+  .winpct-bg.rock     { background: var(--rock-c); }
+  .winpct-bg.paper    { background: var(--paper-c); }
+  .winpct-bg.scissors { background: var(--scissors-c); }
+
+  .winpct-emoji { font-size: 1.1rem; width: 24px; text-align: center; position: relative; z-index: 1; }
+  .winpct-label { font-size: 0.8rem; font-weight: 700; width: 90px; flex-shrink: 0; position: relative; z-index: 1; }
+  .winpct-label.rock     { color: var(--rock-c); }
+  .winpct-label.paper    { color: var(--paper-c); }
+  .winpct-label.scissors { color: var(--scissors-c); }
+
+  .winpct-bar-wrap { flex: 1; height: 8px; background: var(--border); border-radius: 8px; overflow: hidden; position: relative; z-index: 1; }
+  .winpct-bar { height: 100%; border-radius: 8px; transition: width 0.6s ease; }
+  .winpct-bar.rock     { background: var(--rock-c); }
+  .winpct-bar.paper    { background: var(--paper-c); }
+  .winpct-bar.scissors { background: var(--scissors-c); }
+
+  .winpct-num {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.78rem;
+    font-weight: 700;
+    width: 38px;
+    text-align: left;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+  }
+  .winpct-num.rock     { color: var(--rock-c); }
+  .winpct-num.paper    { color: var(--paper-c); }
+  .winpct-num.scissors { color: var(--scissors-c); }
+
+  .winpct-best-badge {
+    font-size: 0.58rem;
+    padding: 2px 7px;
+    border-radius: 20px;
+    background: rgba(0,255,136,0.1);
+    color: var(--green);
+    border: 1px solid rgba(0,255,136,0.3);
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 0.5px;
+    position: relative;
+    z-index: 1;
+    flex-shrink: 0;
+  }
+
+
   .preset-color-row {
     display: flex;
     align-items: center;
@@ -1090,7 +1169,35 @@
     </div>
   </div>
 
-  <button class="next-btn" id="next-btn" onclick="nextRound()">סיבוב הבא ↩</button>
+  <div class="winpct-card hidden" id="winpct-card">
+    <div class="winpct-header">סיכויי ניצחון שלך לכל בחירה</div>
+    <div class="winpct-row" id="winpct-row-rock">
+      <div class="winpct-bg rock" id="winpct-bg-rock"></div>
+      <div class="winpct-emoji">✊</div>
+      <div class="winpct-label rock">אבן</div>
+      <div class="winpct-bar-wrap"><div class="winpct-bar rock" id="winpct-bar-rock" style="width:0%"></div></div>
+      <div class="winpct-num rock" id="winpct-num-rock">0%</div>
+      <div class="winpct-best-badge" id="winpct-best-rock" style="display:none">✓ מומלץ</div>
+    </div>
+    <div class="winpct-row" id="winpct-row-paper">
+      <div class="winpct-bg paper" id="winpct-bg-paper"></div>
+      <div class="winpct-emoji">📄</div>
+      <div class="winpct-label paper">נייר</div>
+      <div class="winpct-bar-wrap"><div class="winpct-bar paper" id="winpct-bar-paper" style="width:0%"></div></div>
+      <div class="winpct-num paper" id="winpct-num-paper">0%</div>
+      <div class="winpct-best-badge" id="winpct-best-paper" style="display:none">✓ מומלץ</div>
+    </div>
+    <div class="winpct-row" id="winpct-row-scissors">
+      <div class="winpct-bg scissors" id="winpct-bg-scissors"></div>
+      <div class="winpct-emoji">✂️</div>
+      <div class="winpct-label scissors">מספריים</div>
+      <div class="winpct-bar-wrap"><div class="winpct-bar scissors" id="winpct-bar-scissors" style="width:0%"></div></div>
+      <div class="winpct-num scissors" id="winpct-num-scissors">0%</div>
+      <div class="winpct-best-badge" id="winpct-best-scissors" style="display:none">✓ מומלץ</div>
+    </div>
+  </div>
+
+
 
 </div><!-- /main-mobile -->
 
@@ -1610,6 +1717,7 @@ window.loadProfile = async function() {
     setStatus('green', `${currentProfile.sourceLabel} · מוכן`);
     show('rec-card');
     show('stats-card');
+    show('winpct-card');
     el('next-btn').classList.add('show');
     watchForCheat(name, rec);
 
@@ -1755,13 +1863,30 @@ window.nextRound = function() {
 // ── RENDER ──
 function renderRecommendation(rec) {
   if (!rec) return;
-  const { beat, confidence, reason } = rec;
+  const { beat, confidence, reason, adjProb } = rec;
   el('rec-emoji').textContent  = EMOJI[beat];
   el('rec-name').textContent   = HEB[beat];
   el('rec-name').className     = 'rec-name ' + beat;
   el('rec-reason').textContent = reason;
   el('conf-fill').style.width  = Math.min(confidence,99)+'%';
   el('conf-pct').textContent   = confidence+'%';
+  if (adjProb) renderWinPcts(adjProb, beat);
+}
+
+function renderWinPcts(adjProb, beat) {
+  const winPcts = RPSEngine.computeWinPcts(adjProb);
+  const maxPct  = Math.max(winPcts.rock, winPcts.paper, winPcts.scissors) || 1;
+
+  ['rock', 'paper', 'scissors'].forEach(c => {
+    const pct = winPcts[c];
+    const isBest = c === beat;
+    el('winpct-bar-' + c).style.width  = (pct / maxPct * 100) + '%';
+    el('winpct-bg-' + c).style.width   = pct + '%';
+    el('winpct-num-' + c).textContent  = pct + '%';
+    el('winpct-best-' + c).style.display = isBest ? 'inline-block' : 'none';
+  });
+
+  show('winpct-card');
 }
 
 function renderStats(stats, sourceLabel) {

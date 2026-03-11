@@ -400,16 +400,26 @@ function showToast(msg) {
 // ── LOAD ──
 async function load() {
   try {
-    const snap = await get(ref(db, 'games'));
-    if (!snap.exists()) { el('loader').innerHTML='<div class="empty"><div class="icon">🎯</div><p>אין נתונים עדיין</p></div>'; return; }
-    allGames = Object.entries(snap.val())
+    const [gamesSnap, playersSnap] = await Promise.all([
+      get(ref(db, 'games')),
+      get(ref(db, 'players'))
+    ]);
+    if (!gamesSnap.exists()) { el('loader').innerHTML='<div class="empty"><div class="icon">🎯</div><p>אין נתונים עדיין</p></div>'; return; }
+    allGames = Object.entries(gamesSnap.val())
       .map(([id,g])=>({id,...g}))
       .filter(g=>!g.cheated && !g.cpuCheat);
     const pSet = new Set();
+    // Add players from games
     allGames.forEach(g=>{
       if(g.p1 && g.p1!=='unknown') pSet.add(g.p1);
       if(g.p2 && g.p2!=='unknown') pSet.add(g.p2);
     });
+    // Also add players from the players list (even if they haven't played yet)
+    if (playersSnap && playersSnap.exists()) {
+      Object.values(playersSnap.val()).forEach(p => {
+        if (p.name && p.name !== 'unknown') pSet.add(p.name);
+      });
+    }
     allPlayers = [...pSet].sort((a,b)=>a.localeCompare(b,'he'));
     el('loader').remove();
     render();
@@ -494,7 +504,11 @@ function render() {
   const pgames  = isPlayer ? getPlayerGames(games, filterName) : null;
 
   if (!games.length) {
-    page.innerHTML = `<div class="empty"><div class="icon">🔍</div><p>אין משחקים תואמים לסינון הנוכחי</p></div>`;
+    if (filterName) {
+      page.innerHTML = `<div class="empty"><div class="icon">🎮</div><p><strong>${filterName}</strong> נרשם/ה אך עדיין לא שיחק/ה משחקים.</p></div>`;
+    } else {
+      page.innerHTML = `<div class="empty"><div class="icon">🔍</div><p>אין משחקים תואמים לסינון הנוכחי</p></div>`;
+    }
     return;
   }
 
