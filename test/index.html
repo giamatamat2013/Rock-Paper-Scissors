@@ -1,0 +1,2098 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>אבן נייר מספריים</title>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --card: #12121a;
+    --border: #2a2a3a;
+    --accent: #ff4d6d;
+    --accent2: #4dffb4;
+    --accent3: #ffd54d;
+    --text: #e8e8f0;
+    --muted: #666680;
+    --rock: #ff6b6b;
+    --paper: #4dabf7;
+    --scissors: #69db7c; /* overridden by JS each session */
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Rubik', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,77,109,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,77,109,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  #app {
+    position: relative;
+    z-index: 1;
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 20px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Header */
+  .header {
+    text-align: center;
+    padding: 30px 0 20px;
+    position: relative;
+  }
+
+  .header-stats-link {
+    position: absolute;
+    top: 50%;
+    left: 16px;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0,255,136,0.08);
+    border: 1px solid rgba(0,255,136,0.3);
+    border-radius: 20px;
+    padding: 6px 14px;
+    color: var(--accent2);
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-decoration: none;
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 0.5px;
+    transition: all 0.2s;
+  }
+  .header-stats-link:hover {
+    background: rgba(0,255,136,0.16);
+    border-color: rgba(0,255,136,0.6);
+    color: var(--accent2);
+  }
+
+  .header h1 {
+    font-size: clamp(2rem, 6vw, 3.5rem);
+    font-weight: 900;
+    line-height: 1;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent3) 50%, var(--accent2) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -1px;
+  }
+
+  .header .emoji-row {
+    font-size: 2rem;
+    margin-top: 8px;
+    animation: float 3s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+
+  /* Mode Select */
+  .mode-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin: 20px 0;
+  }
+
+  .mode-btn {
+    background: var(--card);
+    border: 2px solid var(--border);
+    border-radius: 16px;
+    padding: 20px 12px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+    color: var(--text);
+    font-family: 'Rubik', sans-serif;
+  }
+
+  .mode-btn:hover, .mode-btn.active {
+    border-color: var(--accent);
+    background: rgba(255,77,109,0.08);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(255,77,109,0.15);
+  }
+
+  .mode-btn .icon { font-size: 2rem; display: block; margin-bottom: 8px; }
+  .mode-btn .label { font-size: 0.85rem; font-weight: 600; }
+
+  /* Card */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 24px;
+    margin: 12px 0;
+  }
+
+  /* Score bar */
+  .score-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 20px;
+    margin-bottom: 16px;
+  }
+
+  .score-item {
+    text-align: center;
+    min-width: 60px;
+  }
+
+  .score-item .val {
+    font-size: 2rem;
+    font-weight: 900;
+    font-family: 'Space Mono', monospace;
+    line-height: 1;
+  }
+
+  .score-item .lbl {
+    font-size: 0.72rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 3px;
+  }
+
+  .score-item.wins .val { color: var(--accent2); }
+  .score-item.losses .val { color: var(--accent); }
+  .score-item.draws .val { color: var(--accent3); }
+
+  /* Arena */
+  .arena {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 24px 0;
+  }
+
+  .player-side {
+    flex: 1;
+    text-align: center;
+  }
+
+  .choice-display {
+    width: 110px;
+    height: 110px;
+    border-radius: 50%;
+    border: 3px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3.5rem;
+    margin: 0 auto 10px;
+    transition: all 0.3s;
+    background: rgba(255,255,255,0.03);
+    position: relative;
+  }
+
+  .choice-display.reveal {
+    animation: pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes pop {
+    0% { transform: scale(0.5); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  .choice-display.rock { border-color: var(--rock); box-shadow: 0 0 20px rgba(255,107,107,0.2); }
+  .choice-display.paper { border-color: var(--paper); box-shadow: 0 0 20px rgba(77,171,247,0.2); }
+  .choice-display.scissors { border-color: var(--scissors); box-shadow: 0 0 20px rgba(105,219,124,0.2); }
+
+  .player-name {
+    font-size: 0.8rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 600;
+  }
+
+  .vs-badge {
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    color: var(--muted);
+    font-size: 0.9rem;
+    flex-shrink: 0;
+    width: 40px;
+    text-align: center;
+  }
+
+  /* Result banner */
+  .result-banner {
+    text-align: center;
+    padding: 12px;
+    border-radius: 12px;
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin: 4px 0 16px;
+    transition: all 0.3s;
+    min-height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .result-banner.win { background: rgba(77,255,180,0.12); color: var(--accent2); border: 1px solid rgba(77,255,180,0.3); }
+  .result-banner.lose { background: rgba(255,77,109,0.12); color: var(--accent); border: 1px solid rgba(255,77,109,0.3); }
+  .result-banner.draw { background: rgba(255,213,77,0.1); color: var(--accent3); border: 1px solid rgba(255,213,77,0.3); }
+  .result-banner.empty { background: transparent; color: var(--muted); font-size: 0.9rem; font-weight: 400; border: 1px dashed var(--border); }
+
+  /* Choice buttons */
+  .choices {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 8px;
+  }
+
+  .choice-btn {
+    background: var(--card);
+    border: 2px solid var(--border);
+    border-radius: 16px;
+    padding: 16px 8px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+    font-family: 'Rubik', sans-serif;
+    color: var(--text);
+  }
+
+  .choice-btn:hover:not(:disabled) {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+  }
+
+  .choice-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .choice-btn .e { font-size: 2.2rem; display: block; }
+  .choice-btn .n { font-size: 0.82rem; font-weight: 600; margin-top: 4px; }
+
+  .choice-btn.rock:hover:not(:disabled) { border-color: var(--rock); background: rgba(255,107,107,0.1); }
+  .choice-btn.paper:hover:not(:disabled) { border-color: var(--paper); background: rgba(77,171,247,0.1); }
+  .choice-btn.scissors:hover:not(:disabled) { border-color: var(--scissors); background: rgba(105,219,124,0.1); }
+
+  /* Buttons */
+  .btn {
+    padding: 12px 24px;
+    border-radius: 12px;
+    border: none;
+    font-family: 'Rubik', sans-serif;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.5px;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), #c9184a);
+    color: white;
+    box-shadow: 0 4px 14px rgba(255,77,109,0.3);
+  }
+
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,77,109,0.4); }
+
+  .btn-secondary {
+    background: var(--border);
+    color: var(--text);
+  }
+
+  .btn-secondary:hover { background: #3a3a50; transform: translateY(-1px); }
+
+  .btn-full { width: 100%; }
+
+  .btn-sm { padding: 8px 16px; font-size: 0.8rem; }
+
+  /* Text input */
+  .input-field {
+    background: var(--bg);
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: var(--text);
+    font-family: 'Rubik', sans-serif;
+    font-size: 0.95rem;
+    width: 100%;
+    transition: border-color 0.2s;
+  }
+
+  .input-field:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  .input-field::placeholder { color: var(--muted); }
+
+  /* Local pass screen */
+  .pass-screen {
+    text-align: center;
+    padding: 30px 20px;
+  }
+
+  .pass-screen .big-icon { font-size: 4rem; margin-bottom: 16px; }
+  .pass-screen h3 { font-size: 1.3rem; margin-bottom: 8px; }
+  .pass-screen p { color: var(--muted); font-size: 0.9rem; margin-bottom: 24px; }
+
+  /* Online room */
+  .room-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+    flex-shrink: 0;
+  }
+
+  .dot.green { background: var(--accent2); box-shadow: 0 0 6px var(--accent2); animation: pulse 1.5s infinite; }
+  .dot.yellow { background: var(--accent3); animation: pulse 1.5s infinite; }
+  .dot.red { background: var(--accent); }
+
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+
+  .room-code {
+    font-family: 'Space Mono', monospace;
+    font-size: 1.8rem;
+    font-weight: 700;
+    letter-spacing: 4px;
+    color: var(--accent3);
+    background: rgba(255,213,77,0.07);
+    border: 1px dashed rgba(255,213,77,0.3);
+    border-radius: 10px;
+    padding: 10px 20px;
+    text-align: center;
+    margin: 10px 0;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .room-code:hover { background: rgba(255,213,77,0.12); }
+
+  .copy-hint { font-size: 0.75rem; color: var(--muted); text-align: center; margin-top: 4px; }
+
+  .waiting-animation {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 16px;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+
+  .waiting-animation span {
+    animation: bounce 1s infinite;
+    display: inline-block;
+  }
+
+  .waiting-animation span:nth-child(2) { animation-delay: 0.15s; }
+  .waiting-animation span:nth-child(3) { animation-delay: 0.3s; }
+
+  @keyframes bounce { 0%,100% { transform:translateY(0); } 40% { transform:translateY(-5px); } }
+
+  /* Divider */
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 16px 0;
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+
+  .divider::before, .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* Hidden */
+  .hidden { display: none !important; }
+
+  /* Flex utils */
+  .flex { display: flex; }
+  .gap-8 { gap: 8px; }
+  .mt-8 { margin-top: 8px; }
+  .mt-12 { margin-top: 12px; }
+  .mt-16 { margin-top: 16px; }
+  .text-center { text-align: center; }
+  .text-muted { color: var(--muted); font-size: 0.85rem; }
+
+  /* History */
+  .history {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: center;
+    min-height: 28px;
+    padding: 4px 0;
+  }
+
+  .history-item {
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-weight: 600;
+    border: 1px solid;
+  }
+
+  .history-item.W { background: rgba(77,255,180,0.1); color: var(--accent2); border-color: rgba(77,255,180,0.3); }
+  .history-item.L { background: rgba(255,77,109,0.1); color: var(--accent); border-color: rgba(255,77,109,0.3); }
+  .history-item.D { background: rgba(255,213,77,0.08); color: var(--accent3); border-color: rgba(255,213,77,0.25); }
+
+
+  /* Cooldown progress bar */
+  .cooldown-bar-wrap {
+    height: 4px;
+    background: var(--border);
+    border-radius: 4px;
+    margin: 10px 0 4px;
+    overflow: hidden;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .cooldown-bar-wrap.active { opacity: 1; }
+  .cooldown-bar {
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(90deg, var(--accent2), var(--accent3));
+    border-radius: 4px;
+    transform-origin: left;
+    transition: transform linear;
+  }
+  .choice-btn:disabled {
+    opacity: 0.35 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+  }
+
+  /* Shake animation for choices */
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    20% { transform: translateX(-4px) rotate(-5deg); }
+    40% { transform: translateX(4px) rotate(5deg); }
+    60% { transform: translateX(-3px); }
+    80% { transform: translateX(3px); }
+  }
+
+  .shaking { animation: shake 0.5s ease; }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-80px);
+    background: var(--card);
+    border: 1px solid var(--accent2);
+    color: var(--accent2);
+    padding: 10px 20px;
+    border-radius: 50px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    z-index: 100;
+    transition: transform 0.3s;
+  }
+
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+
+  /* Autocomplete dropdown */
+  .autocomplete-wrap { position: relative; }
+
+  .autocomplete-list {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0; left: 0;
+    background: #1a1a26;
+    border: 1px solid var(--accent);
+    border-radius: 10px;
+    overflow: hidden;
+    z-index: 50;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    max-height: 180px;
+    overflow-y: auto;
+  }
+
+  .autocomplete-item {
+    padding: 10px 14px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.15s;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .autocomplete-item:last-child { border-bottom: none; }
+  .autocomplete-item:hover, .autocomplete-item.highlighted { background: rgba(255,77,109,0.12); }
+  .autocomplete-item .ac-icon { font-size: 1rem; opacity: 0.7; }
+  .autocomplete-item .ac-name { font-weight: 600; }
+
+  .input-error { border-color: var(--accent) !important; }
+  .field-error { color: var(--accent); font-size: 0.78rem; margin-top: 4px; display: none; }
+  .field-error.show { display: block; }
+
+  .btn-random {
+    background: linear-gradient(135deg, #7c3aed, #4f46e5);
+    color: white;
+    font-weight: 700;
+    border: none;
+    box-shadow: 0 4px 14px rgba(124,58,237,0.35);
+    transition: all 0.2s;
+    cursor: pointer;
+    font-family: 'Rubik', sans-serif;
+    border-radius: 12px;
+    padding: 12px 24px;
+    font-size: 0.9rem;
+    letter-spacing: 0.5px;
+  }
+  .btn-random:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(124,58,237,0.5); }
+
+  /* Responsive */
+  @media (max-width: 480px) {
+    .mode-grid { grid-template-columns: 1fr 1fr 1fr; }
+    .mode-btn { padding: 14px 6px; }
+    .mode-btn .icon { font-size: 1.5rem; }
+    .mode-btn .label { font-size: 0.72rem; }
+    .choice-display { width: 90px; height: 90px; font-size: 2.8rem; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <a href="stats/" class="header-stats-link">📊 סטטיסטיקות</a>
+    <h1>אבן נייר מספריים</h1>
+    <div class="emoji-row">✊ 📄 ✂️</div>
+  </div>
+
+  <!-- Mode selector -->
+  <div class="mode-grid">
+    <button class="mode-btn active" onclick="setMode('computer')" id="mode-computer">
+      <span class="icon">🤖</span>
+      <span class="label">נגד מחשב</span>
+    </button>
+    <button class="mode-btn" onclick="setMode('local')" id="mode-local">
+      <span class="icon">👥</span>
+      <span class="label">שחקן מקומי</span>
+    </button>
+    <button class="mode-btn" onclick="setMode('online')" id="mode-online">
+      <span class="icon">🌐</span>
+      <span class="label">אונליין</span>
+    </button>
+  </div>
+
+  <!-- ===== COMPUTER MODE ===== -->
+  <div id="screen-computer">
+
+    <!-- Name setup -->
+    <div id="c-name-setup" class="card">
+      <div style="font-weight:700;font-size:1.05rem;margin-bottom:4px;">מה שמך?</div>
+      <div class="text-muted" style="margin-bottom:12px;">השם יישמר לרשימת השחקנים</div>
+      <div class="autocomplete-wrap">
+        <input type="text" class="input-field" id="c-name-input" placeholder="הכנס שם שחקן" maxlength="16" autocomplete="off" oninput="acInput(this,'c-ac-list')" onkeydown="acKeydown(event,'c-ac-list','c-name-input')">
+        <div class="autocomplete-list hidden" id="c-ac-list"></div>
+      </div>
+      <div class="field-error" id="c-name-err">נא להכניס שם</div>
+
+      <div style="display:flex;gap:8px;margin-top:14px;margin-bottom:2px;">
+        <button class="btn btn-primary" id="c-mode-normal" onclick="setCpuMode('normal')" style="flex:1;background:linear-gradient(135deg,var(--accent),#c9184a);">🎲 מחשב רגיל</button>
+        <button class="btn btn-secondary" id="c-mode-cheat" onclick="setCpuMode('cheat')" style="flex:1;">🧠 מחשב חכם</button>
+      </div>
+      <div id="c-cheat-hint" class="hidden" style="font-size:0.75rem;color:var(--accent3);margin-top:6px;text-align:center;">מחשב ישתמש בנתוני Firebase כדי לנצח אותך</div>
+      <button class="btn btn-primary mt-12" style="width:100%" onclick="startComputerGame()">▶ התחל משחק</button>
+    </div>
+
+    <!-- Game -->
+    <div id="c-game" class="hidden">
+    <div class="score-bar">
+      <div class="score-item wins"><div class="val" id="c-wins">0</div><div class="lbl">ניצחונות</div></div>
+      <div class="score-item draws"><div class="val" id="c-draws">0</div><div class="lbl">תיקו</div></div>
+      <div class="score-item losses"><div class="val" id="c-losses">0</div><div class="lbl">הפסדים</div></div>
+    </div>
+
+    <div class="card">
+      <div class="arena">
+        <div class="player-side">
+          <div class="choice-display" id="c-player-display">❓</div>
+          <div class="player-name" id="c-my-name">אתה</div>
+        </div>
+        <div class="vs-badge">VS</div>
+        <div class="player-side">
+          <div class="choice-display" id="c-cpu-display">❓</div>
+          <div class="player-name" id="c-cpu-label">מחשב</div>
+        </div>
+      </div>
+
+      <div class="result-banner empty" id="c-result">בחר את המהלך שלך</div>
+
+      <div class="choices" id="c-choices">
+        <button class="choice-btn rock" onclick="playComputer('rock')">
+          <span class="e">✊</span><span class="n">אבן</span>
+        </button>
+        <button class="choice-btn paper" onclick="playComputer('paper')">
+          <span class="e">📄</span><span class="n">נייר</span>
+        </button>
+        <button class="choice-btn scissors" onclick="playComputer('scissors')">
+          <span class="e">✂️</span><span class="n">מספריים</span>
+        </button>
+      </div>
+      <div class="cooldown-bar-wrap" id="c-cooldown-wrap"><div class="cooldown-bar" id="c-cooldown-bar"></div></div>
+    </div>
+
+    <div class="card" style="padding:14px 20px;">
+      <div style="font-size:0.75rem;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">היסטוריה</div>
+      <div class="history" id="c-history"></div>
+    </div>
+    <button class="btn btn-secondary btn-sm mt-8" onclick="resetComputerMode()">← החלף שחקן</button>
+    </div><!-- end c-game -->
+  </div>
+
+  <!-- ===== LOCAL MODE ===== -->
+  <div id="screen-local" class="hidden">
+    <!-- Pass screen for P2 -->
+    <div id="local-pass-p1" class="hidden">
+      <div class="pass-screen">
+        <div class="big-icon">🫣</div>
+        <h3>עכשיו תור שחקן 2</h3>
+        <p>שחקן 1 בחר. תן לשחקן 2 לשבת מול המסך ולוחץ להמשך.</p>
+        <button class="btn btn-primary btn-full" onclick="showLocalP2()">אני מוכן, הצג בחירת שחקן 2 ←</button>
+      </div>
+    </div>
+
+    <div id="local-pass-p2" class="hidden">
+      <div class="pass-screen">
+        <div class="big-icon">🫣</div>
+        <h3>עכשיו תור שחקן 1</h3>
+        <p>שחקן 2 בחר. תן לשחקן 1 לשבת מול המסך ולחץ להמשך.</p>
+        <button class="btn btn-primary btn-full" onclick="showLocalP1()">אני מוכן, הצג בחירת שחקן 1 ←</button>
+      </div>
+    </div>
+
+    <!-- Main local game -->
+    <div id="local-game">
+      <div class="score-bar">
+        <div class="score-item wins"><div class="val" id="l-p1wins">0</div><div class="lbl" id="l-p1name-score">שחקן 1</div></div>
+        <div class="score-item draws"><div class="val" id="l-draws">0</div><div class="lbl">תיקו</div></div>
+        <div class="score-item losses"><div class="val" id="l-p2wins">0</div><div class="lbl" id="l-p2name-score">שחקן 2</div></div>
+      </div>
+
+      <div id="local-name-setup" class="card">
+        <div style="font-weight:700;font-size:1.05rem;margin-bottom:4px;">שמות שחקנים</div>
+        <div class="text-muted" style="margin-bottom:10px;">שם חובה לכל שחקן</div>
+
+        <!-- Game type selector – REQUIRED -->
+        <div style="margin-bottom:16px;">
+          <div style="font-size:0.78rem;color:var(--muted);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">סוג משחק <span style="color:var(--accent)">*</span></div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-secondary" id="l-type-app" onclick="setLocalType('app')" style="flex:1;font-size:0.85rem;padding:10px 6px;">
+              📱 באפליקציה
+            </button>
+            <button class="btn btn-secondary" id="l-type-physical" onclick="setLocalType('physical')" style="flex:1;font-size:0.85rem;padding:10px 6px;">
+              🤝 פיזי
+            </button>
+          </div>
+          <div class="field-error" id="l-type-err" style="margin-top:5px;">יש לבחור סוג משחק</div>
+        </div>
+        <div style="margin-bottom:10px;">
+          <div style="font-size:0.8rem;color:var(--muted);margin-bottom:5px;font-weight:600;">שחקן 1</div>
+          <div class="autocomplete-wrap">
+            <input type="text" class="input-field" id="l-name1" placeholder="שם שחקן 1" maxlength="16" autocomplete="off" oninput="acInput(this,'l-ac1')" onkeydown="acKeydown(event,'l-ac1','l-name1')">
+            <div class="autocomplete-list hidden" id="l-ac1"></div>
+          </div>
+          <div class="field-error" id="l-name1-err">נא להכניס שם</div>
+        </div>
+        <div style="margin-bottom:14px;">
+          <div style="font-size:0.8rem;color:var(--muted);margin-bottom:5px;font-weight:600;">שחקן 2</div>
+          <div class="autocomplete-wrap">
+            <input type="text" class="input-field" id="l-name2" placeholder="שם שחקן 2" maxlength="16" autocomplete="off" oninput="acInput(this,'l-ac2')" onkeydown="acKeydown(event,'l-ac2','l-name2')">
+            <div class="autocomplete-list hidden" id="l-ac2"></div>
+          </div>
+          <div class="field-error" id="l-name2-err">נא להכניס שם</div>
+        </div>
+        <button class="btn btn-primary" onclick="startLocalGame()" style="width:100%;">▶ התחל משחק</button>
+      </div>
+
+      <div id="local-playing" class="hidden">
+        <div class="card">
+          <div class="arena" id="local-arena-phase">
+            <div class="player-side">
+              <div class="choice-display" id="l-p1-display">❓</div>
+              <div class="player-name" id="l-p1name">שחקן 1</div>
+            </div>
+            <div class="vs-badge">VS</div>
+            <div class="player-side">
+              <div class="choice-display" id="l-p2-display">❓</div>
+              <div class="player-name" id="l-p2name">שחקן 2</div>
+            </div>
+          </div>
+
+          <div class="result-banner empty" id="l-result">שחקן 1 בוחר...</div>
+
+          <div class="choices" id="local-choices">
+            <button class="choice-btn rock" onclick="localChoice('rock')">
+              <span class="e">✊</span><span class="n">אבן</span>
+            </button>
+            <button class="choice-btn paper" onclick="localChoice('paper')">
+              <span class="e">📄</span><span class="n">נייר</span>
+            </button>
+            <button class="choice-btn scissors" onclick="localChoice('scissors')">
+              <span class="e">✂️</span><span class="n">מספריים</span>
+            </button>
+          </div>
+          <div class="cooldown-bar-wrap" id="l-cooldown-wrap"><div class="cooldown-bar" id="l-cooldown-bar"></div></div>
+
+          <div id="local-next-btn" class="hidden mt-16">
+            <button class="btn btn-primary btn-full" onclick="localNextRound()">סיבוב הבא ↩</button>
+          </div>
+        </div>
+
+        <div class="card" style="padding:14px 20px;">
+          <div style="font-size:0.75rem;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">היסטוריה</div>
+          <div class="history" id="l-history"></div>
+        </div>
+        <button class="btn btn-secondary btn-sm mt-8" onclick="resetLocalSetup()">← החלף שחקנים / סוג</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ONLINE MODE ===== -->
+  <div id="screen-online" class="hidden">
+
+    <!-- Lobby -->
+    <div id="online-lobby">
+      <div class="card">
+        <div style="font-weight:700;font-size:1.1rem;margin-bottom:4px;">שם משתמש</div>
+        <div class="text-muted" style="margin-bottom:12px;">חובה – ישמר לרשימת השחקנים</div>
+        <div class="autocomplete-wrap">
+          <input type="text" class="input-field" id="online-username" placeholder="שם שלך" maxlength="16" autocomplete="off" oninput="acInput(this,'o-ac')" onkeydown="acKeydown(event,'o-ac','online-username')">
+          <div class="autocomplete-list hidden" id="o-ac"></div>
+        </div>
+        <div class="field-error" id="o-name-err">נא להכניס שם</div>
+      </div>
+
+      <div class="card">
+        <button class="btn btn-random btn-full" onclick="findRandomOpponent()" style="font-size:1rem;padding:16px;width:100%;">
+          🎲 מצא יריב אקראי
+        </button>
+
+        <div class="divider">או שחק עם חבר</div>
+
+        <button class="btn btn-primary btn-full" onclick="createRoom()" style="font-size:0.95rem;padding:14px;">
+          ➕ צור חדר חדש
+        </button>
+
+        <div style="margin-top:10px;" class="flex gap-8">
+          <input type="text" class="input-field" id="join-code" placeholder="קוד חדר (4 ספרות)" maxlength="4" style="text-align:center;font-family:'Space Mono';font-size:1.2rem;letter-spacing:4px;" oninput="this.value=this.value.replace(/\D/g,'')">
+          <button class="btn btn-secondary" onclick="joinRoom()" style="white-space:nowrap;flex-shrink:0;">הצטרף</button>
+        </div>
+
+        <div id="lobby-error" class="hidden" style="color:var(--accent);font-size:0.85rem;margin-top:8px;text-align:center;"></div>
+      </div>
+    </div>
+
+    <!-- Waiting for opponent -->
+    <div id="online-waiting" class="hidden card" style="text-align:center;padding:32px 24px;">
+      <div style="font-size:2.5rem;margin-bottom:12px;">⏳</div>
+      <div style="font-weight:700;font-size:1.1rem;margin-bottom:6px;">ממתין לשחקן שני...</div>
+      <div style="color:var(--muted);font-size:0.85rem;margin-bottom:16px;">שתף את קוד החדר עם חבר</div>
+      <div class="room-code" id="display-room-code" onclick="copyCode()">----</div>
+      <div class="copy-hint">לחץ להעתקה</div>
+      <div class="waiting-animation">
+        <span>●</span><span>●</span><span>●</span>
+      </div>
+      <button class="btn btn-secondary btn-sm mt-8" onclick="leaveRoom()">ביטול</button>
+    </div>
+
+    <!-- Matchmaking waiting -->
+    <div id="online-matchmaking" class="hidden card" style="text-align:center;padding:32px 24px;">
+      <div style="font-size:2.5rem;margin-bottom:12px;">🎲</div>
+      <div style="font-weight:700;font-size:1.1rem;margin-bottom:6px;">מחפש יריב אקראי...</div>
+      <div style="color:var(--muted);font-size:0.85rem;margin-bottom:20px;">ממתין לשחקן פנוי בתור</div>
+      <div class="waiting-animation">
+        <span>●</span><span>●</span><span>●</span>
+      </div>
+      <div style="margin-top:16px;font-size:0.8rem;color:var(--muted);" id="mm-queue-size"></div>
+      <button class="btn btn-secondary btn-sm mt-8" onclick="cancelMatchmaking()">ביטול</button>
+    </div>
+
+    <!-- Online Game -->
+    <div id="online-game" class="hidden">
+      <div class="score-bar">
+        <div class="score-item wins"><div class="val" id="o-mywins">0</div><div class="lbl">הניצחונות שלי</div></div>
+        <div class="score-item draws"><div class="val" id="o-draws">0</div><div class="lbl">תיקו</div></div>
+        <div class="score-item losses"><div class="val" id="o-losses">0</div><div class="lbl">הפסדים</div></div>
+      </div>
+
+      <div class="card">
+        <div class="room-status">
+          <div class="dot green" id="o-status-dot"></div>
+          <span id="o-status-text">מחובר</span>
+          <span style="margin-right:auto;font-family:'Space Mono';color:var(--accent3);" id="o-room-badge"></span>
+        </div>
+
+        <div class="arena">
+          <div class="player-side">
+            <div class="choice-display" id="o-my-display">❓</div>
+            <div class="player-name" id="o-my-name">אתה</div>
+          </div>
+          <div class="vs-badge">VS</div>
+          <div class="player-side">
+            <div class="choice-display" id="o-opp-display">❓</div>
+            <div class="player-name" id="o-opp-name">יריב</div>
+          </div>
+        </div>
+
+        <div class="result-banner empty" id="o-result">בחר את המהלך שלך</div>
+
+        <div class="choices" id="online-choices">
+          <button class="choice-btn rock" onclick="onlineChoice('rock')">
+            <span class="e">✊</span><span class="n">אבן</span>
+          </button>
+          <button class="choice-btn paper" onclick="onlineChoice('paper')">
+            <span class="e">📄</span><span class="n">נייר</span>
+          </button>
+          <button class="choice-btn scissors" onclick="onlineChoice('scissors')">
+            <span class="e">✂️</span><span class="n">מספריים</span>
+          </button>
+        </div>
+        <div class="cooldown-bar-wrap" id="o-cooldown-wrap"><div class="cooldown-bar" id="o-cooldown-bar"></div></div>
+      </div>
+
+      <div class="card" style="padding:14px 20px;">
+        <div style="font-size:0.75rem;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">היסטוריה</div>
+        <div class="history" id="o-history"></div>
+      </div>
+
+      <button class="btn btn-secondary btn-sm mt-8" onclick="leaveRoom()">עזוב חדר</button>
+    </div>
+
+  </div>
+
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="./rps-engine.js"></script>
+<script type="module">
+// ==================== FIREBASE ====================
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
+import { getAnalytics, logEvent } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-analytics.js";
+import { getDatabase, ref, set, get, onValue, update, remove, off } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyA-IW5ESE-eBuyMBfreGmyPdQV7YmkfmGs",
+  authDomain: "rock-paper-scissors-stats.firebaseapp.com",
+  databaseURL: "https://rock-paper-scissors-stats-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "rock-paper-scissors-stats",
+  storageBucket: "rock-paper-scissors-stats.firebasestorage.app",
+  messagingSenderId: "358139389618",
+  appId: "1:358139389618:web:c27497f5d7a5b23beb4bab",
+  measurementId: "G-PHDLVC4S49"
+};
+
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+const db = getDatabase(app);
+
+// ==================== GLOBALS ====================
+const CHOICES = { rock: '✊', paper: '📄', scissors: '✂️' };
+const NAMES = { rock: 'אבן', paper: 'נייר', scissors: 'מספריים' };
+const RESERVED_NAMES = ['מחשב', 'computer', 'cpu', 'bot', 'ai', 'בוט'];
+
+function isReservedName(name) {
+  return RESERVED_NAMES.includes(name.trim().toLowerCase());
+}
+
+let currentMode = 'computer';
+let allPlayers = []; // cached from Firebase
+
+// Computer state
+let cScore = { wins: 0, losses: 0, draws: 0 };
+let cPlayerName = null;
+let cpuPreChoice = null; // CPU decides BEFORE player clicks
+let cpuMode = 'normal'; // 'normal' | 'cheat'
+
+// Local state
+let lState = { phase: 'p1', p1Choice: null, p2Choice: null };
+let lScore = { p1: 0, p2: 0, draws: 0 };
+let lHistory = [];
+let lNames = { p1: 'שחקן 1', p2: 'שחקן 2' };
+let lLocalType = null; // 'app' | 'physical'
+
+// Online state
+let oState = {
+  roomCode: null,
+  myId: null, // 'p1' or 'p2'
+  myName: null,
+  oppName: null,
+  score: { wins: 0, losses: 0, draws: 0 },
+  history: [],
+  myChoice: null,
+  waiting: false
+};
+let roomRef = null;
+let roomListener = null;
+
+// ==================== UTILS ====================
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function setDisplay(el, choice, animate = true) {
+  el.textContent = choice ? CHOICES[choice] : '❓';
+  el.className = 'choice-display' + (choice ? ' ' + choice : '');
+  if (animate && choice) {
+    el.classList.add('reveal');
+    setTimeout(() => el.classList.remove('reveal'), 500);
+  }
+}
+
+function getWinner(a, b) {
+  if (a === b) return 'draw';
+  if ((a === 'rock' && b === 'scissors') ||
+      (a === 'scissors' && b === 'paper') ||
+      (a === 'paper' && b === 'rock')) return 'a';
+  return 'b';
+}
+
+function randomChoice() {
+  const opts = ['rock', 'paper', 'scissors'];
+  return opts[Math.floor(Math.random() * 3)];
+}
+
+// Track button positions per container: { rock: 'left'|'center'|'right', ... }
+const buttonPositions = {};
+
+function shuffleChoiceButtons(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const buttons = Array.from(container.querySelectorAll('button'));
+  if (buttons.length < 3) return;
+
+  // Fisher-Yates shuffle
+  for (let i = buttons.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [buttons[i], buttons[j]] = [buttons[j], buttons[i]];
+  }
+
+  // Re-append in shuffled order and record positions
+  const posNames = ['left', 'center', 'right'];
+  buttonPositions[containerId] = {};
+  buttons.forEach((btn, idx) => {
+    container.appendChild(btn);
+    // Detect choice value from onclick attribute
+    const onclickAttr = btn.getAttribute('onclick') || '';
+    const match = onclickAttr.match(/'(rock|paper|scissors)'/);
+    if (match) {
+      buttonPositions[containerId][match[1]] = posNames[idx];
+    }
+  });
+}
+
+function getChoicePosition(containerId, choice) {
+  return (buttonPositions[containerId] && buttonPositions[containerId][choice]) || 'unknown';
+}
+
+
+
+// ==================== CHOICE COLORS ====================
+// 12 vivid hues to pick from (avoid near-identical pairs)
+const HUE_POOL = [0, 30, 60, 100, 150, 190, 220, 260, 290, 320, 345, 175];
+
+function hslToHex(h, s, l) {
+  s /= 100; l /= 100;
+  const a = s * Math.min(l, 1 - l);
+  const f = n => {
+    const k = (n + h / 30) % 12;
+    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    return Math.round(255 * color).toString(16).padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+
+function randomDistinctHues() {
+  // Pick 3 hues at least 60° apart from the pool
+  const shuffled = [...HUE_POOL].sort(() => Math.random() - 0.5);
+  const chosen = [shuffled[0]];
+  for (const h of shuffled.slice(1)) {
+    if (chosen.every(c => Math.min(Math.abs(c - h), 360 - Math.abs(c - h)) >= 60)) {
+      chosen.push(h);
+      if (chosen.length === 3) break;
+    }
+  }
+  // Fallback if not enough distinct hues (shouldn't happen with our pool)
+  while (chosen.length < 3) chosen.push((chosen[chosen.length-1] + 120) % 360);
+  return chosen;
+}
+
+let sessionColors = { rock: null, paper: null, scissors: null };
+
+function assignSessionColors() {
+  const hues = randomDistinctHues();
+  const labels = ['rock', 'paper', 'scissors'];
+  // Shuffle which label gets which hue
+  const shuffledLabels = [...labels].sort(() => Math.random() - 0.5);
+  shuffledLabels.forEach((label, i) => {
+    const hex = hslToHex(hues[i], 85, 65);
+    const hexDim = hslToHex(hues[i], 70, 40);
+    sessionColors[label] = { hex, hue: hues[i] };
+    document.documentElement.style.setProperty('--' + label, hex);
+    // Also update the choice-display box-shadow inline via a style rule
+    // We'll inject a dynamic <style> tag
+  });
+  // Inject dynamic CSS for box-shadows (can't use rgba() with CSS vars easily)
+  let dynStyle = document.getElementById('dynamic-colors');
+  if (!dynStyle) { dynStyle = document.createElement('style'); dynStyle.id = 'dynamic-colors'; document.head.appendChild(dynStyle); }
+  dynStyle.textContent = `
+    .choice-display.rock { border-color: ${sessionColors.rock.hex}; box-shadow: 0 0 20px ${sessionColors.rock.hex}44; }
+    .choice-display.paper { border-color: ${sessionColors.paper.hex}; box-shadow: 0 0 20px ${sessionColors.paper.hex}44; }
+    .choice-display.scissors { border-color: ${sessionColors.scissors.hex}; box-shadow: 0 0 20px ${sessionColors.scissors.hex}44; }
+    .choice-btn.rock:hover:not(:disabled) { border-color: ${sessionColors.rock.hex}; background: ${sessionColors.rock.hex}1a; }
+    .choice-btn.paper:hover:not(:disabled) { border-color: ${sessionColors.paper.hex}; background: ${sessionColors.paper.hex}1a; }
+    .choice-btn.scissors:hover:not(:disabled) { border-color: ${sessionColors.scissors.hex}; background: ${sessionColors.scissors.hex}1a; }
+  `;
+}
+
+// Assign once per session on load
+assignSessionColors();
+
+// ==================== COOLDOWN ====================
+const COOLDOWN_MS = 2000;
+const cooldownState = {};
+
+function startCooldown(containerId, barWrapId, barId, onDone) {
+  // Disable buttons
+  document.getElementById(containerId).querySelectorAll('button').forEach(b => b.disabled = true);
+
+  const wrap = document.getElementById(barWrapId);
+  const bar = document.getElementById(barId);
+  wrap.classList.add('active');
+  bar.style.transition = 'none';
+  bar.style.transform = 'scaleX(1)';
+
+  // Force reflow so transition starts fresh
+  bar.getBoundingClientRect();
+  bar.style.transition = `transform ${COOLDOWN_MS}ms linear`;
+  bar.style.transform = 'scaleX(0)';
+
+  if (cooldownState[containerId]) clearTimeout(cooldownState[containerId]);
+  cooldownState[containerId] = setTimeout(() => {
+    wrap.classList.remove('active');
+    bar.style.transition = 'none';
+    bar.style.transform = 'scaleX(1)';
+    if (onDone) onDone();
+    // Re-enable buttons AFTER onDone (so onDone can shuffle first)
+    document.getElementById(containerId).querySelectorAll('button').forEach(b => b.disabled = false);
+  }, COOLDOWN_MS);
+}
+
+// ==================== PLAYERS DB ====================
+async function savePlayer(name) {
+  if (!name || name.length < 1) return;
+  const key = name.trim().replace(/[^a-zA-Z0-9א-ת]/g, '_').slice(0, 40);
+  try {
+    await set(ref(db, 'players/' + key), { name: name.trim(), lastSeen: Date.now() });
+  } catch(e) { console.warn('savePlayer error', e); }
+}
+
+// Live listener – keeps allPlayers always in sync with Firebase
+function subscribeToPlayers() {
+  onValue(ref(db, 'players'), (snap) => {
+    if (snap.exists()) {
+      allPlayers = Object.values(snap.val())
+        .map(p => p.name)
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b, 'he'));
+    } else {
+      allPlayers = [];
+    }
+  }, (err) => { console.warn('players listener error', err); });
+}
+
+subscribeToPlayers();
+
+// ==================== ROOM CLEANUP ====================
+async function cleanupStaleRooms() {
+  try {
+    const snap = await get(ref(db, 'rooms'));
+    if (!snap.exists()) return;
+    const now = Date.now();
+    const STALE_MS = 15 * 60 * 1000; // 15 minutes
+    const rooms = snap.val();
+    const deletions = [];
+    for (const [code, room] of Object.entries(rooms)) {
+      const lastActivity = room.lastActivity || room.createdAt || 0;
+      if (now - lastActivity > STALE_MS) {
+        deletions.push(remove(ref(db, 'rooms/' + code)));
+      }
+    }
+    if (deletions.length > 0) {
+      await Promise.all(deletions);
+      console.log(`[cleanup] removed ${deletions.length} stale room(s)`);
+    }
+  } catch(e) {
+    console.warn('[cleanup] error:', e);
+  }
+}
+
+// Run cleanup on every page load
+cleanupStaleRooms();
+
+
+
+async function saveGame(gameData) {
+  // gameData: { mode, p1, p2, winner, result, p1Choice, p2Choice, roomCode? }
+  try {
+    const { push: fbPush } = await import("https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js");
+    const gRef = fbPush(ref(db, 'games'));
+    await set(gRef, {
+      ...gameData,
+      timestamp: Date.now(),
+      date: new Date().toISOString()
+    });
+  } catch(e) { console.warn('saveGame error', e); }
+}
+
+// ==================== AUTOCOMPLETE ====================
+// Each input has its own highlight index
+const acState = {};
+
+window.acInput = function(inputEl, listId) {
+  const raw = inputEl.value;
+  const val = raw.trim().toLowerCase();
+  const list = document.getElementById(listId);
+  if (!acState[listId]) acState[listId] = { highlight: -1 };
+  acState[listId].highlight = -1;
+
+  if (!val) { list.classList.add('hidden'); return; }
+
+  // While players are still loading, show a loading indicator
+  if (allPlayers.length === 0) {
+    list.innerHTML = '<div class="autocomplete-item" style="color:var(--muted);cursor:default;"><span class="ac-icon">⏳</span><span class="ac-name">טוען שחקנים...</span></div>';
+    list.classList.remove('hidden');
+    return;
+  }
+
+  // Score matches: starts-with scores higher than contains
+  const matches = allPlayers
+    .map(p => {
+      const pl = p.toLowerCase();
+      if (pl.startsWith(val)) return { name: p, score: 2 };
+      if (pl.includes(val)) return { name: p, score: 1 };
+      return null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name, 'he'))
+    .slice(0, 7);
+
+  if (matches.length === 0) { list.classList.add('hidden'); return; }
+
+  // Highlight the matched part in bold
+  list.innerHTML = matches.map(({ name }, i) => {
+    const idx = name.toLowerCase().indexOf(val);
+    let display = name;
+    if (idx !== -1) {
+      display = name.slice(0, idx)
+        + '<strong style="color:var(--accent2)">' + name.slice(idx, idx + val.length) + '</strong>'
+        + name.slice(idx + val.length);
+    }
+    return `<div class="autocomplete-item" data-name="${name}" data-idx="${i}"
+      onmousedown="acSelect('${name.replace(/'/g,"\'")}','${inputEl.id}','${listId}')">
+      <span class="ac-icon">👤</span><span class="ac-name">${display}</span>
+    </div>`;
+  }).join('');
+  list.classList.remove('hidden');
+}
+
+window.acSelect = function(name, inputId, listId) {
+  document.getElementById(inputId).value = name;
+  document.getElementById(listId).classList.add('hidden');
+  if (acState[listId]) acState[listId].highlight = -1;
+  // Remove error state if any
+  document.getElementById(inputId).classList.remove('input-error');
+}
+
+window.acKeydown = function(e, listId, inputId) {
+  const list = document.getElementById(listId);
+  const items = list.querySelectorAll('.autocomplete-item');
+  if (!acState[listId]) acState[listId] = { highlight: -1 };
+
+  if (list.classList.contains('hidden') || items.length === 0) return;
+
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    acState[listId].highlight = Math.min(acState[listId].highlight + 1, items.length - 1);
+    items.forEach((el, i) => el.classList.toggle('highlighted', i === acState[listId].highlight));
+    // Scroll into view
+    if (items[acState[listId].highlight]) items[acState[listId].highlight].scrollIntoView({ block: 'nearest' });
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    acState[listId].highlight = Math.max(acState[listId].highlight - 1, 0);
+    items.forEach((el, i) => el.classList.toggle('highlighted', i === acState[listId].highlight));
+    if (items[acState[listId].highlight]) items[acState[listId].highlight].scrollIntoView({ block: 'nearest' });
+  } else if (e.key === 'Enter') {
+    if (acState[listId].highlight >= 0 && items[acState[listId].highlight]) {
+      e.preventDefault();
+      acSelect(items[acState[listId].highlight].dataset.name, inputId, listId);
+    }
+  } else if (e.key === 'Escape') {
+    list.classList.add('hidden');
+    acState[listId].highlight = -1;
+  }
+}
+
+// Close autocomplete on outside click or scroll
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.autocomplete-wrap')) {
+    document.querySelectorAll('.autocomplete-list').forEach(l => l.classList.add('hidden'));
+  }
+});
+document.addEventListener('scroll', () => {
+  document.querySelectorAll('.autocomplete-list').forEach(l => l.classList.add('hidden'));
+}, true);
+
+function addHistory(container, result) {
+  const labels = { win: 'W', lose: 'L', draw: 'D' };
+  const item = document.createElement('span');
+  item.className = 'history-item ' + labels[result];
+  item.textContent = result === 'win' ? 'נצח' : result === 'lose' ? 'הפסיד' : 'תיקו';
+  container.prepend(item);
+  if (container.children.length > 20) container.removeChild(container.lastChild);
+}
+
+// ==================== MODE SWITCH ====================
+window.setMode = function(mode) {
+  currentMode = mode;
+  trackModeSwitch(mode);
+  ['computer','local','online'].forEach(m => {
+    document.getElementById('screen-' + m).classList.toggle('hidden', m !== mode);
+    document.getElementById('mode-' + m).classList.toggle('active', m === mode);
+  });
+  // Reset local type selection when switching to local
+  if (mode === 'local') {
+    lLocalType = null;
+    const appBtn = document.getElementById('l-type-app');
+    const physBtn = document.getElementById('l-type-physical');
+    if (appBtn) { appBtn.className = 'btn btn-secondary'; appBtn.style.cssText = 'flex:1;font-size:0.85rem;padding:10px 6px;'; }
+    if (physBtn) { physBtn.className = 'btn btn-secondary'; physBtn.style.cssText = 'flex:1;font-size:0.85rem;padding:10px 6px;'; }
+  }
+  if (mode === 'online' && oState.roomCode) {
+    // Already in room, stay in game
+  }
+};
+
+// ==================== COMPUTER MODE ====================
+window.startComputerGame = function() {
+  const name = document.getElementById('c-name-input').value.trim();
+  const errEl = document.getElementById('c-name-err');
+  const inputEl = document.getElementById('c-name-input');
+  if (!name) {
+    errEl.classList.add('show');
+    inputEl.classList.add('input-error');
+    return;
+  }
+  if (isReservedName(name)) {
+    errEl.textContent = 'שם זה שמור למחשב, בחר שם אחר';
+    errEl.classList.add('show');
+    inputEl.classList.add('input-error');
+    return;
+  }
+  errEl.textContent = 'נא להכניס שם';
+  errEl.classList.remove('show');
+  inputEl.classList.remove('input-error');
+  cPlayerName = name;
+  savePlayer(name);
+  cScore = { wins: 0, losses: 0, draws: 0 };
+  document.getElementById('c-wins').textContent = 0;
+  document.getElementById('c-draws').textContent = 0;
+  document.getElementById('c-losses').textContent = 0;
+  document.getElementById('c-history').innerHTML = '';
+  document.getElementById('c-my-name').textContent = name;
+  document.getElementById('c-result').className = 'result-banner empty';
+  document.getElementById('c-result').textContent = 'בחר את המהלך שלך';
+  setDisplay(document.getElementById('c-player-display'), null, false);
+  setDisplay(document.getElementById('c-cpu-display'), null, false);
+  document.getElementById('c-name-setup').classList.add('hidden');
+  document.getElementById('c-game').classList.remove('hidden');
+  // Show cheat badge on CPU label
+  const cpuLabel = document.getElementById('c-cpu-label');
+  cpuLabel.textContent = cpuMode === 'cheat' ? '🧠 מחשב חכם' : 'מחשב';
+  cpuLabel.style.color = cpuMode === 'cheat' ? 'var(--accent3)' : '';
+  shuffleChoiceButtons('c-choices');
+  preCpuChoice(); // CPU decides its first move before player sees the board
+};
+
+window.resetComputerMode = function() {
+  document.getElementById('c-game').classList.add('hidden');
+  document.getElementById('c-name-setup').classList.remove('hidden');
+  document.getElementById('c-name-input').value = '';
+  cPlayerName = null;
+  cpuPreChoice = null;
+  setCpuMode('normal');
+};
+
+
+// ==================== CPU CHEAT MODE ====================
+window.setCpuMode = function(mode) {
+  cpuMode = mode;
+  const normalBtn = document.getElementById('c-mode-normal');
+  const cheatBtn  = document.getElementById('c-mode-cheat');
+  const hint      = document.getElementById('c-cheat-hint');
+  if (mode === 'cheat') {
+    normalBtn.className = 'btn btn-secondary';
+    normalBtn.style.flex = '1';
+    cheatBtn.className = 'btn btn-primary';
+    cheatBtn.style.cssText = 'flex:1;background:linear-gradient(135deg,var(--accent3),#e6a800);color:#000;';
+    hint.classList.remove('hidden');
+  } else {
+    normalBtn.className = 'btn btn-primary';
+    normalBtn.style.cssText = 'flex:1;background:linear-gradient(135deg,var(--accent),#c9184a);';
+    cheatBtn.className = 'btn btn-secondary';
+    cheatBtn.style.cssText = 'flex:1;';
+    hint.classList.add('hidden');
+  }
+};
+
+// Compute what the CPU should play based on player's historical choices
+// ── CPU CHEAT: uses the same RPSEngine as cheat/index.html ──
+// The CPU plays each choice with probability = player's win% with that choice.
+// i.e. if player's win% with paper is 40% (→ opponent plays rock 40%),
+//      the CPU plays paper 40% of the time.
+async function cheatCpuChoice(playerName) {
+  try {
+    const snap = await get(ref(db, 'games'));
+    if (!snap.exists()) return randomChoice();
+
+    const allGamesRaw = Object.entries(snap.val()).map(([id, g]) => ({ id, ...g }));
+    const profile     = RPSEngine.buildProfile(allGamesRaw, playerName, 'local');
+    const rec         = RPSEngine.buildRecommendation(profile, {});
+
+    if (!rec || !rec.adjProb) return randomChoice();
+
+    // Build CPU distribution: CPU plays X with prob = player's win% with X
+    // player's win% with X = adjProb[BEATEN_BY[X]]  (X wins against BEATEN_BY[X])
+    const BEATEN_BY = RPSEngine.BEATEN_BY;
+    const cpuDist = {
+      rock:     rec.adjProb[BEATEN_BY.rock],     // adjProb[scissors]
+      paper:    rec.adjProb[BEATEN_BY.paper],    // adjProb[rock]
+      scissors: rec.adjProb[BEATEN_BY.scissors], // adjProb[paper]
+    };
+
+    return RPSEngine.sampleWeighted(cpuDist);
+  } catch(e) {
+    console.warn('[cheat cpu]', e);
+    return randomChoice();
+  }
+}
+
+function preCpuChoice() {
+  const cpuEl = document.getElementById('c-cpu-display');
+  cpuEl.textContent = '🤔';
+  cpuEl.className = 'choice-display';
+
+  if (cpuMode === 'cheat' && cPlayerName) {
+    cpuPreChoice = null; // will be set async
+    cheatCpuChoice(cPlayerName).then(choice => {
+      cpuPreChoice = choice;
+    });
+  } else {
+    cpuPreChoice = randomChoice();
+  }
+}
+
+window.playComputer = function(choice) {
+  const cpu = cpuPreChoice || randomChoice(); // use pre-rolled choice
+  cpuPreChoice = null;
+  const choicePos = getChoicePosition('c-choices', choice);
+  setDisplay(document.getElementById('c-player-display'), choice);
+  setDisplay(document.getElementById('c-cpu-display'), cpu);
+
+  const r = getWinner(choice, cpu);
+  const resultEl = document.getElementById('c-result');
+  const histEl = document.getElementById('c-history');
+
+  if (r === 'draw') {
+    resultEl.className = 'result-banner draw';
+    resultEl.textContent = '🤝 תיקו!';
+    cScore.draws++;
+    addHistory(histEl, 'draw');
+  } else if (r === 'a') {
+    resultEl.className = 'result-banner win';
+    resultEl.textContent = '🎉 ניצחת!';
+    cScore.wins++;
+    addHistory(histEl, 'win');
+  } else {
+    resultEl.className = 'result-banner lose';
+    resultEl.textContent = `😤 הפסדת! מחשב בחר ${NAMES[cpu]}`;
+    cScore.losses++;
+    addHistory(histEl, 'lose');
+  }
+
+  document.getElementById('c-wins').textContent = cScore.wins;
+  document.getElementById('c-draws').textContent = cScore.draws;
+  document.getElementById('c-losses').textContent = cScore.losses;
+  trackRound('computer', choice, cpu, r);
+
+  saveGame({
+    mode: 'computer',
+    p1: cPlayerName,
+    p2: 'מחשב',
+    p1Choice: choice,
+    p2Choice: cpu,
+    result: r === 'draw' ? 'draw' : r === 'a' ? 'p1_win' : 'p2_win',
+    winner: r === 'draw' ? null : r === 'a' ? cPlayerName : 'מחשב',
+    p1ChoicePosition: choicePos,
+    cpuCheat: cpuMode === 'cheat',
+    colors: { rock: sessionColors.rock.hex, paper: sessionColors.paper.hex, scissors: sessionColors.scissors.hex }
+  });
+
+  // Start cooldown before next round
+  startCooldown('c-choices', 'c-cooldown-wrap', 'c-cooldown-bar', () => {
+    shuffleChoiceButtons('c-choices');
+    preCpuChoice();
+  });
+};
+
+// ==================== LOCAL MODE ====================
+window.setLocalType = function(type) {
+  lLocalType = type;
+  const appBtn = document.getElementById('l-type-app');
+  const physBtn = document.getElementById('l-type-physical');
+  const errEl = document.getElementById('l-type-err');
+  errEl.classList.remove('show');
+  if (type === 'app') {
+    appBtn.className = 'btn btn-primary';
+    appBtn.style.cssText = 'flex:1;font-size:0.85rem;padding:10px 6px;';
+    physBtn.className = 'btn btn-secondary';
+    physBtn.style.cssText = 'flex:1;font-size:0.85rem;padding:10px 6px;';
+  } else {
+    physBtn.className = 'btn btn-primary';
+    physBtn.style.cssText = 'flex:1;font-size:0.85rem;padding:10px 6px;background:linear-gradient(135deg,var(--accent2),#00cc77);color:#000;';
+    appBtn.className = 'btn btn-secondary';
+    appBtn.style.cssText = 'flex:1;font-size:0.85rem;padding:10px 6px;';
+  }
+};
+
+window.startLocalGame = function() {
+  const n1 = document.getElementById('l-name1').value.trim();
+  const n2 = document.getElementById('l-name2').value.trim();
+  let valid = true;
+
+  // Validate game type
+  if (!lLocalType) {
+    document.getElementById('l-type-err').classList.add('show');
+    valid = false;
+  } else {
+    document.getElementById('l-type-err').classList.remove('show');
+  }
+
+  if (!n1) {
+    document.getElementById('l-name1-err').classList.add('show');
+    document.getElementById('l-name1').classList.add('input-error');
+    valid = false;
+  } else if (isReservedName(n1)) {
+    document.getElementById('l-name1-err').textContent = 'שם זה שמור למחשב, בחר שם אחר';
+    document.getElementById('l-name1-err').classList.add('show');
+    document.getElementById('l-name1').classList.add('input-error');
+    valid = false;
+  } else {
+    document.getElementById('l-name1-err').textContent = 'נא להכניס שם';
+    document.getElementById('l-name1-err').classList.remove('show');
+    document.getElementById('l-name1').classList.remove('input-error');
+  }
+  if (!n2) {
+    document.getElementById('l-name2-err').classList.add('show');
+    document.getElementById('l-name2').classList.add('input-error');
+    valid = false;
+  } else if (isReservedName(n2)) {
+    document.getElementById('l-name2-err').textContent = 'שם זה שמור למחשב, בחר שם אחר';
+    document.getElementById('l-name2-err').classList.add('show');
+    document.getElementById('l-name2').classList.add('input-error');
+    valid = false;
+  } else {
+    document.getElementById('l-name2-err').textContent = 'נא להכניס שם';
+    document.getElementById('l-name2-err').classList.remove('show');
+    document.getElementById('l-name2').classList.remove('input-error');
+  }
+  if (!valid) return;
+  lNames.p1 = n1;
+  lNames.p2 = n2;
+  savePlayer(n1);
+  savePlayer(n2);
+  document.getElementById('l-p1name').textContent = lNames.p1;
+  document.getElementById('l-p2name').textContent = lNames.p2;
+  document.getElementById('l-p1name-score').textContent = lNames.p1;
+  document.getElementById('l-p2name-score').textContent = lNames.p2;
+  document.getElementById('local-name-setup').classList.add('hidden');
+  document.getElementById('local-playing').classList.remove('hidden');
+  lScore = { p1: 0, p2: 0, draws: 0 };
+  document.getElementById('l-p1wins').textContent = 0;
+  document.getElementById('l-draws').textContent = 0;
+  document.getElementById('l-p2wins').textContent = 0;
+  document.getElementById('l-history').innerHTML = '';
+  resetLocalRound();
+};
+
+function resetLocalRound() {
+  lState = { phase: 'p1', p1Choice: null, p2Choice: null };
+  setDisplay(document.getElementById('l-p1-display'), null, false);
+  setDisplay(document.getElementById('l-p2-display'), null, false);
+  document.getElementById('l-result').className = 'result-banner empty';
+  document.getElementById('l-result').textContent = `${lNames.p1} בוחר...`;
+  document.getElementById('local-choices').querySelectorAll('button').forEach(b => b.disabled = false);
+  document.getElementById('local-next-btn').classList.add('hidden');
+  document.getElementById('local-pass-p1').classList.add('hidden');
+  document.getElementById('local-pass-p2').classList.add('hidden');
+  document.getElementById('local-game').classList.remove('hidden');
+  shuffleChoiceButtons('local-choices');
+}
+
+window.localChoice = function(choice) {
+  if (lState.phase === 'p1') {
+    lState.p1Choice = choice;
+    lState.p1ChoicePosition = getChoicePosition('local-choices', choice);
+    // Show "chosen" on p1 side as lock icon
+    document.getElementById('l-p1-display').textContent = '🔒';
+    document.getElementById('l-p1-display').className = 'choice-display';
+    document.getElementById('local-choices').querySelectorAll('button').forEach(b => b.disabled = true);
+    // Show pass screen
+    document.getElementById('local-game').classList.add('hidden');
+    document.getElementById('local-pass-p1').classList.remove('hidden');
+  } else if (lState.phase === 'p2') {
+    lState.p2Choice = choice;
+    lState.p2ChoicePosition = getChoicePosition('local-choices', choice);
+    document.getElementById('l-p2-display').textContent = '🔒';
+    document.getElementById('l-p2-display').className = 'choice-display';
+    document.getElementById('local-choices').querySelectorAll('button').forEach(b => b.disabled = true);
+    // Show pass screen for p1
+    document.getElementById('local-game').classList.add('hidden');
+    document.getElementById('local-pass-p2').classList.remove('hidden');
+  }
+};
+
+window.showLocalP2 = function() {
+  lState.phase = 'p2';
+  document.getElementById('local-pass-p1').classList.add('hidden');
+  document.getElementById('local-game').classList.remove('hidden');
+  document.getElementById('local-choices').querySelectorAll('button').forEach(b => b.disabled = false);
+  document.getElementById('l-result').textContent = `${lNames.p2} בוחר...`;
+  shuffleChoiceButtons('local-choices');
+};
+
+window.showLocalP1 = function() {
+  // Both chose, reveal!
+  document.getElementById('local-pass-p2').classList.add('hidden');
+  document.getElementById('local-game').classList.remove('hidden');
+  revealLocal();
+};
+
+function revealLocal() {
+  const p1 = lState.p1Choice, p2 = lState.p2Choice;
+  setDisplay(document.getElementById('l-p1-display'), p1);
+  setDisplay(document.getElementById('l-p2-display'), p2);
+
+  const r = getWinner(p1, p2);
+  const resultEl = document.getElementById('l-result');
+  const histEl = document.getElementById('l-history');
+
+  if (r === 'draw') {
+    resultEl.className = 'result-banner draw';
+    resultEl.textContent = '🤝 תיקו!';
+    lScore.draws++;
+    addHistory(histEl, 'draw');
+  } else if (r === 'a') {
+    resultEl.className = 'result-banner win';
+    resultEl.textContent = `🎉 ${lNames.p1} ניצח!`;
+    lScore.p1++;
+    addHistory(histEl, 'win');
+  } else {
+    resultEl.className = 'result-banner lose';
+    resultEl.textContent = `🎉 ${lNames.p2} ניצח!`;
+    lScore.p2++;
+    addHistory(histEl, 'lose');
+  }
+
+  document.getElementById('l-p1wins').textContent = lScore.p1;
+  document.getElementById('l-draws').textContent = lScore.draws;
+  document.getElementById('l-p2wins').textContent = lScore.p2;
+  document.getElementById('local-next-btn').classList.remove('hidden');
+
+  saveGame({
+    mode: 'local',
+    gameType: lLocalType || 'unknown',
+    p1: lNames.p1,
+    p2: lNames.p2,
+    p1Choice: p1,
+    p2Choice: p2,
+    result: r === 'draw' ? 'draw' : r === 'a' ? 'p1_win' : 'p2_win',
+    winner: r === 'draw' ? null : r === 'a' ? lNames.p1 : lNames.p2,
+    p1ChoicePosition: lState.p1ChoicePosition || 'unknown',
+    p2ChoicePosition: lState.p2ChoicePosition || 'unknown',
+    colors: { rock: sessionColors.rock.hex, paper: sessionColors.paper.hex, scissors: sessionColors.scissors.hex }
+  });
+}
+
+window.resetLocalSetup = function() {
+  document.getElementById('local-playing').classList.add('hidden');
+  document.getElementById('local-name-setup').classList.remove('hidden');
+  lLocalType = null;
+  lScore = { p1: 0, p2: 0, draws: 0 };
+  lHistory = [];
+  document.getElementById('l-history').innerHTML = '';
+  // Reset type buttons
+  const appBtn = document.getElementById('l-type-app');
+  const physBtn = document.getElementById('l-type-physical');
+  appBtn.className = 'btn btn-secondary'; appBtn.style.cssText = 'flex:1;font-size:0.85rem;padding:10px 6px;';
+  physBtn.className = 'btn btn-secondary'; physBtn.style.cssText = 'flex:1;font-size:0.85rem;padding:10px 6px;';
+};
+
+window.localNextRound = function() {
+  resetLocalRound(true); // skipEnable=true, cooldown will re-enable
+  startCooldown('local-choices', 'l-cooldown-wrap', 'l-cooldown-bar', null);
+};
+
+// ==================== ONLINE MODE ====================
+function genRoomCode() {
+  return String(Math.floor(1000 + Math.random() * 9000));
+}
+
+window.createRoom = async function() {
+  if (!db) { showOnlineError("Firebase לא מוגדר. שנה את פרטי ה-config."); return; }
+  const name = getOnlineNameOrError();
+  if (!name) return;
+  const code = genRoomCode();
+
+  try {
+    const rRef = ref(db, 'rooms/' + code);
+    const snap = await get(rRef);
+    // Make sure code isn't taken
+    const finalCode = snap.exists() ? genRoomCode() : code;
+    await set(ref(db, 'rooms/' + finalCode), {
+      p1: { name, choice: null },
+      p2: null,
+      round: 1,
+      createdAt: Date.now(),
+      lastActivity: Date.now()
+    });
+
+    oState.roomCode = finalCode;
+    oState.myId = 'p1';
+    oState.myName = name;
+    oState.score = { wins: 0, losses: 0, draws: 0 };
+    oState.history = [];
+
+    document.getElementById('online-lobby').classList.add('hidden');
+    document.getElementById('online-waiting').classList.remove('hidden');
+    document.getElementById('display-room-code').textContent = finalCode;
+
+    savePlayer(name);
+    listenRoom(finalCode);
+    trackRoomCreate();
+  } catch(e) {
+    showOnlineError("שגיאה ביצירת חדר: " + e.message);
+  }
+};
+
+window.joinRoom = async function() {
+  if (!db) { showOnlineError("Firebase לא מוגדר."); return; }
+  const name = getOnlineNameOrError();
+  if (!name) return;
+  const code = document.getElementById('join-code').value.trim();
+  if (code.length !== 4) { showOnlineError("הכנס קוד בן 4 ספרות"); return; }
+
+  try {
+    const rRef = ref(db, 'rooms/' + code);
+    const snap = await get(rRef);
+    if (!snap.exists()) { showOnlineError("חדר לא נמצא"); return; }
+    const data = snap.val();
+    if (data.p2) { showOnlineError("החדר מלא"); return; }
+    await update(ref(db, 'rooms/' + code), { p2: { name, choice: null }, lastActivity: Date.now() });
+
+    oState.roomCode = code;
+    oState.myId = 'p2';
+    oState.myName = name;
+    oState.oppName = data.p1.name;
+    oState.score = { wins: 0, losses: 0, draws: 0 };
+    oState.history = [];
+
+    document.getElementById('online-lobby').classList.add('hidden');
+    showOnlineGame();
+    savePlayer(name);
+    listenRoom(code);
+    trackRoomJoin();
+  } catch(e) {
+    showOnlineError("שגיאה בהצטרפות: " + e.message);
+  }
+};
+
+function showOnlineGame() {
+  document.getElementById('online-waiting').classList.add('hidden');
+  document.getElementById('online-game').classList.remove('hidden');
+  document.getElementById('o-my-name').textContent = oState.myName;
+  document.getElementById('o-opp-name').textContent = oState.oppName || '...';
+  document.getElementById('o-room-badge').textContent = '#' + oState.roomCode;
+  setDisplay(document.getElementById('o-my-display'), null, false);
+  setDisplay(document.getElementById('o-opp-display'), null, false);
+  document.getElementById('o-result').className = 'result-banner empty';
+  document.getElementById('o-result').textContent = 'בחר את המהלך שלך';
+  document.getElementById('online-choices').querySelectorAll('button').forEach(b => b.disabled = false);
+  shuffleChoiceButtons('online-choices');
+}
+
+function listenRoom(code) {
+  roomRef = ref(db, 'rooms/' + code);
+  roomListener = onValue(roomRef, (snap) => {
+    if (!snap.exists()) {
+      // Room deleted
+      if (oState.roomCode) handleRoomClosed();
+      return;
+    }
+    const data = snap.val();
+
+    // Waiting (private room) or matchmaking: check if p2 joined
+    const waitingVisible = !document.getElementById('online-waiting').classList.contains('hidden');
+    const mmVisible = !document.getElementById('online-matchmaking').classList.contains('hidden');
+    if (waitingVisible || mmVisible) {
+      if (data.p2) {
+        oState.oppName = data.p2.name;
+        // Clean up queue listener if matchmaking
+        if (mmQueueRef && mmQueueListener) { off(mmQueueRef); mmQueueListener = null; }
+        if (mmMyQueueKey) { try { remove(ref(db, 'queue/' + mmMyQueueKey)); } catch(e){} mmMyQueueKey = null; }
+        document.getElementById('online-matchmaking').classList.add('hidden');
+        showOnlineGame();
+      }
+      return;
+    }
+
+    // Update opp name
+    const oppId = oState.myId === 'p1' ? 'p2' : 'p1';
+    if (data[oppId]) {
+      oState.oppName = data[oppId].name;
+      document.getElementById('o-opp-name').textContent = oState.oppName;
+    }
+
+    // Check if both chose
+    if (data.p1 && data.p2 && data.p1.choice && data.p2.choice) {
+      const myChoice = data[oState.myId].choice;
+      const oppChoice = data[oppId].choice;
+
+      // Only process if we haven't shown result yet
+      if (!oState.waiting) return; // Already processing
+
+      oState.waiting = false;
+
+      // Stamp last activity so cleanup knows this room is alive
+      update(ref(db, 'rooms/' + oState.roomCode), { lastActivity: Date.now() }).catch(() => {});
+
+      setDisplay(document.getElementById('o-my-display'), myChoice);
+      setDisplay(document.getElementById('o-opp-display'), oppChoice);
+
+      const r = getWinner(myChoice, oppChoice);
+      const resultEl = document.getElementById('o-result');
+
+      // Determine p1/p2 choices and names for saving
+      const p1Choice = data.p1.choice;
+      const p2Choice = data.p2.choice;
+      const p1Name = data.p1.name;
+      const p2Name = data.p2.name;
+      const gameResult = r === 'draw' ? 'draw' : r === 'a' ? 'p1_win' : 'p2_win';
+      const winnerName = r === 'draw' ? null : r === 'a' ? p1Name : p2Name;
+
+      // Only p1 writes the game record (avoid duplicate)
+      if (oState.myId === 'p1') {
+        const myPos = oState.myChoicePosition || 'unknown';
+        saveGame({
+          mode: 'online',
+          roomCode: oState.roomCode,
+          p1: p1Name,
+          p2: p2Name,
+          p1Choice,
+          p2Choice,
+          result: gameResult,
+          winner: winnerName,
+          p1ChoicePosition: oState.myId === 'p1' ? myPos : 'unknown',
+          colors: { rock: sessionColors.rock.hex, paper: sessionColors.paper.hex, scissors: sessionColors.scissors.hex }
+        });
+      }
+
+      if (r === 'draw') {
+        resultEl.className = 'result-banner draw';
+        resultEl.textContent = '🤝 תיקו!';
+        oState.score.draws++;
+        addHistory(document.getElementById('o-history'), 'draw');
+      } else if ((r === 'a' && oState.myId === 'p1') || (r === 'b' && oState.myId === 'p2')) {
+        resultEl.className = 'result-banner win';
+        resultEl.textContent = '🎉 ניצחת!';
+        oState.score.wins++;
+        addHistory(document.getElementById('o-history'), 'win');
+      } else {
+        resultEl.className = 'result-banner lose';
+        resultEl.textContent = '😤 הפסדת!';
+        oState.score.losses++;
+        addHistory(document.getElementById('o-history'), 'lose');
+      }
+
+      document.getElementById('o-mywins').textContent = oState.score.wins;
+      document.getElementById('o-draws').textContent = oState.score.draws;
+      document.getElementById('o-losses').textContent = oState.score.losses;
+
+      // Reset for next round after delay
+      setTimeout(() => {
+        if (!oState.roomCode) return;
+        update(ref(db, 'rooms/' + oState.roomCode), {
+          [`${oState.myId}/choice`]: null
+        });
+        setDisplay(document.getElementById('o-my-display'), null, false);
+        setDisplay(document.getElementById('o-opp-display'), null, false);
+        document.getElementById('o-result').className = 'result-banner empty';
+        document.getElementById('o-result').textContent = 'בחר את המהלך שלך';
+        document.getElementById('online-choices').querySelectorAll('button').forEach(b => b.disabled = false);
+        oState.myChoice = null;
+        oState.myChoicePosition = null;
+        shuffleChoiceButtons('online-choices');
+      }, 2500);
+    } else if (data[oppId] && data[oppId].choice && !data[oState.myId]?.choice) {
+      // Opponent chose, waiting for me
+      setDisplay(document.getElementById('o-opp-display'), null, false);
+      document.getElementById('o-opp-display').textContent = '🔒';
+    }
+  });
+}
+
+window.onlineChoice = async function(choice) {
+  if (!db || !oState.roomCode) return;
+  document.getElementById('online-choices').querySelectorAll('button').forEach(b => b.disabled = true);
+  oState.myChoice = choice;
+  oState.myChoicePosition = getChoicePosition('online-choices', choice);
+  oState.waiting = true;
+
+  setDisplay(document.getElementById('o-my-display'), choice);
+  document.getElementById('o-result').className = 'result-banner empty';
+  document.getElementById('o-result').textContent = 'ממתין ליריב...';
+
+  try {
+    await update(ref(db, 'rooms/' + oState.roomCode + '/' + oState.myId), { choice });
+  } catch(e) {
+    showOnlineError("שגיאת חיבור");
+  }
+};
+
+function handleRoomClosed() {
+  showToast('החדר נסגר');
+  leaveRoomCleanup();
+}
+
+window.leaveRoom = async function() {
+  if (db && oState.roomCode) {
+    try { await remove(ref(db, 'rooms/' + oState.roomCode)); } catch(e) {}
+  }
+  leaveRoomCleanup();
+};
+
+function leaveRoomCleanup() {
+  if (roomRef && roomListener) {
+    off(roomRef);
+    roomListener = null;
+  }
+  oState.roomCode = null;
+  oState.myId = null;
+  document.getElementById('online-waiting').classList.add('hidden');
+  document.getElementById('online-matchmaking').classList.add('hidden');
+  document.getElementById('online-game').classList.add('hidden');
+  document.getElementById('online-lobby').classList.remove('hidden');
+  document.getElementById('lobby-error').classList.add('hidden');
+}
+
+window.copyCode = function() {
+  const code = document.getElementById('display-room-code').textContent;
+  navigator.clipboard.writeText(code).then(() => showToast('קוד הועתק: ' + code));
+};
+
+function showOnlineError(msg) {
+  const el = document.getElementById('lobby-error');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+
+// ==================== MATCHMAKING ====================
+let mmQueueRef = null;
+let mmQueueListener = null;
+let mmMyQueueKey = null;
+
+function getOnlineNameOrError() {
+  const name = document.getElementById('online-username').value.trim();
+  if (!name) {
+    document.getElementById('o-name-err').classList.add('show');
+    document.getElementById('online-username').classList.add('input-error');
+    return null;
+  }
+  if (isReservedName(name)) {
+    document.getElementById('o-name-err').textContent = 'שם זה שמור למחשב, בחר שם אחר';
+    document.getElementById('o-name-err').classList.add('show');
+    document.getElementById('online-username').classList.add('input-error');
+    return null;
+  }
+  document.getElementById('o-name-err').textContent = 'נא להכניס שם';
+  document.getElementById('o-name-err').classList.remove('show');
+  document.getElementById('online-username').classList.remove('input-error');
+  return name;
+}
+
+window.findRandomOpponent = async function() {
+  if (!db) { showOnlineError("Firebase לא מוגדר."); return; }
+  const name = getOnlineNameOrError();
+  if (!name) return;
+
+  document.getElementById('online-lobby').classList.add('hidden');
+  document.getElementById('online-matchmaking').classList.remove('hidden');
+  document.getElementById('mm-queue-size').textContent = '';
+
+  try {
+    // Check if there's already someone waiting in the queue
+    const qSnap = await get(ref(db, 'queue'));
+    if (qSnap.exists()) {
+      const entries = Object.entries(qSnap.val());
+      // Find first entry that is NOT us (by name)
+      const opponent = entries.find(([k, v]) => v.name !== name);
+      if (opponent) {
+        const [oppKey, oppData] = opponent;
+        // We join their room as p2
+        const code = oppData.roomCode;
+        // Remove them from queue
+        await remove(ref(db, 'queue/' + oppKey));
+
+        await update(ref(db, 'rooms/' + code), { p2: { name, choice: null }, lastActivity: Date.now() });
+        oState.roomCode = code;
+        oState.myId = 'p2';
+        oState.myName = name;
+        oState.oppName = oppData.name;
+        oState.score = { wins: 0, losses: 0, draws: 0 };
+        oState.history = [];
+        document.getElementById('online-matchmaking').classList.add('hidden');
+        savePlayer(name);
+        showOnlineGame();
+        listenRoom(code);
+        trackRoomJoin();
+        return;
+      }
+    }
+
+    // No one waiting – create room and add ourselves to queue
+    const code = genRoomCode();
+    await set(ref(db, 'rooms/' + code), {
+      p1: { name, choice: null },
+      p2: null,
+      round: 1,
+      createdAt: Date.now()
+    });
+
+    const qRef = ref(db, 'queue');
+    const { push } = await import("https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js");
+    const newQRef = push(qRef);
+    mmMyQueueKey = newQRef.key;
+    await set(newQRef, { name, roomCode: code, joinedAt: Date.now() });
+
+    oState.roomCode = code;
+    oState.myId = 'p1';
+    oState.myName = name;
+    oState.score = { wins: 0, losses: 0, draws: 0 };
+    oState.history = [];
+
+    savePlayer(name);
+    trackRoomCreate();
+
+    // Listen for someone joining our room
+    listenRoom(code);
+
+    // Also watch queue size for display
+    mmQueueRef = ref(db, 'queue');
+    mmQueueListener = onValue(mmQueueRef, (snap) => {
+      const size = snap.exists() ? Object.keys(snap.val()).length : 0;
+      const el = document.getElementById('mm-queue-size');
+      if (el) el.textContent = size > 1 ? `${size} שחקנים בתור` : 'אתה ראשון בתור';
+    });
+
+  } catch(e) {
+    showOnlineError("שגיאת matchmaking: " + e.message);
+    document.getElementById('online-matchmaking').classList.add('hidden');
+    document.getElementById('online-lobby').classList.remove('hidden');
+  }
+};
+
+window.cancelMatchmaking = async function() {
+  // Remove from queue if we're in it
+  if (mmMyQueueKey) {
+    try { await remove(ref(db, 'queue/' + mmMyQueueKey)); } catch(e) {}
+    mmMyQueueKey = null;
+  }
+  if (mmQueueRef && mmQueueListener) {
+    off(mmQueueRef);
+    mmQueueListener = null;
+  }
+  // Delete our room
+  if (oState.roomCode) {
+    try { await remove(ref(db, 'rooms/' + oState.roomCode)); } catch(e) {}
+  }
+  leaveRoomCleanup();
+};
+
+// ==================== ANALYTICS HELPERS ====================
+function trackRound(mode, p1Choice, p2Choice, result) {
+  try { logEvent(analytics, 'round_played', { mode, p1_choice: p1Choice, p2_choice: p2Choice, result }); } catch(e) {}
+}
+function trackModeSwitch(mode) {
+  try { logEvent(analytics, 'mode_switched', { mode }); } catch(e) {}
+}
+function trackRoomCreate() {
+  try { logEvent(analytics, 'room_created'); } catch(e) {}
+}
+function trackRoomJoin() {
+  try { logEvent(analytics, 'room_joined'); } catch(e) {}
+}
+
+</script>
+</body>
+</html>

@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#00ff88">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>אבן נייר ומספריים · סטטיסטיקות</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=Heebo:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:      #050508;
+  --surface: #0d0d14;
+  --border:  #1e1e2e;
+  --green:   #00ff88;
+  --red:     #ff3355;
+  --yellow:  #ffd700;
+  --blue:    #4da6ff;
+  --purple:  #aa55ff;
+  --dim:     #444466;
+  --text:    #e0e0f0;
+  --rock-c:  #ff6b6b;
+  --paper-c: #4da6ff;
+  --sci-c:   #00ff88;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+body {
+  font-family: 'Heebo', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100dvh;
+}
+
+body::after {
+  content:'';
+  position:fixed; inset:0;
+  background: repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,255,136,0.012) 2px,rgba(0,255,136,0.012) 4px);
+  pointer-events:none; z-index:100;
+}
+
+/* ── NAV ── */
+.nav {
+  position: sticky; top:0; z-index:50;
+  background: rgba(5,5,8,0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 20px;
+  display: flex; align-items: center; gap: 14px;
+}
+.nav > div { flex: 1; }
+.nav-icon { font-size:1.4rem; filter: drop-shadow(0 0 6px var(--green)); }
+.nav-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.9rem; font-weight:700;
+  color: var(--green); letter-spacing:2px;
+}
+.nav-sub { font-size:0.65rem; color:var(--dim); font-family:'IBM Plex Mono',monospace; letter-spacing:1px; }
+.nav-back {
+  margin-right: auto;
+  background: rgba(0,255,136,0.07);
+  border: 1px solid rgba(0,255,136,0.2);
+  color: var(--green);
+  font-family:'IBM Plex Mono',monospace;
+  font-size:0.72rem;
+  padding:6px 14px; border-radius:20px; cursor:pointer;
+  text-decoration:none; display:flex; align-items:center; gap:5px;
+  transition: all 0.15s;
+}
+.nav-back:hover { background:rgba(0,255,136,0.14); }
+
+/* ── FILTER BAR ── */
+.filter-bar {
+  padding: 14px 20px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+}
+.filter-input-wrap { position:relative; flex:1; min-width:160px; max-width:280px; }
+.filter-input {
+  width:100%;
+  background: var(--bg); border: 1px solid var(--border); border-radius:8px;
+  padding: 8px 12px; color: var(--text);
+  font-family:'Heebo',sans-serif; font-size:0.88rem;
+  transition: border-color 0.2s;
+}
+.filter-input:focus { outline:none; border-color:var(--green); }
+.filter-input::placeholder { color:var(--dim); }
+.ac-drop {
+  position:absolute; top:calc(100% + 4px); right:0; left:0;
+  background:#13131f; border:1px solid var(--green); border-radius:8px;
+  z-index:50; overflow:hidden; max-height:200px; overflow-y:auto; display:none;
+}
+.ac-drop.show { display:block; }
+.ac-item {
+  padding:8px 12px; font-size:0.82rem; cursor:pointer;
+  border-bottom:1px solid var(--border); transition:background 0.1s;
+  display:flex; align-items:center; gap:8px; color:var(--text);
+}
+.ac-item:last-child { border-bottom:none; }
+.ac-item:hover, .ac-item.hl { background:rgba(0,255,136,0.08); color:var(--green); }
+
+.filter-chips { display:flex; gap:6px; flex-wrap:wrap; }
+.chip {
+  padding:5px 12px; border-radius:20px; border:1px solid var(--border);
+  background:var(--bg); font-size:0.72rem; font-family:'IBM Plex Mono',monospace;
+  color:var(--dim); cursor:pointer; transition:all 0.15s;
+}
+.chip.active { background:rgba(0,255,136,0.1); border-color:var(--green); color:var(--green); }
+.chip:hover { border-color:var(--dim); color:var(--text); }
+
+.clear-btn {
+  padding:6px 14px; border-radius:20px;
+  background:transparent; border:1px solid var(--border);
+  font-size:0.72rem; font-family:'IBM Plex Mono',monospace;
+  color:var(--dim); cursor:pointer; transition:all 0.15s; white-space:nowrap;
+}
+.clear-btn:hover { border-color:var(--red); color:var(--red); }
+
+/* ── MAIN GRID ── */
+.page { padding:16px 16px 40px; max-width:1200px; margin:0 auto; }
+
+.section-title {
+  font-family:'IBM Plex Mono',monospace;
+  font-size:0.62rem; color:var(--dim);
+  text-transform:uppercase; letter-spacing:2px;
+  margin-bottom:10px; margin-top:24px;
+}
+.section-title:first-child { margin-top:0; }
+
+.grid-2 { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+.grid-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+.grid-auto { display:grid; grid-template-columns:repeat(auto-fill, minmax(300px,1fr)); gap:10px; }
+
+@media (max-width:640px) {
+  .grid-2, .grid-3 { grid-template-columns:1fr; }
+  .grid-auto { grid-template-columns:1fr; }
+}
+
+/* ── CARD ── */
+.card {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:14px; overflow:hidden;
+}
+.card-header {
+  padding:10px 16px;
+  font-family:'IBM Plex Mono',monospace; font-size:0.62rem;
+  color:var(--dim); text-transform:uppercase; letter-spacing:2px;
+  border-bottom:1px solid var(--border);
+  display:flex; justify-content:space-between; align-items:center;
+}
+.card-header .badge {
+  font-size:0.6rem; padding:2px 8px; border-radius:20px;
+  background:rgba(0,255,136,0.08); color:var(--green);
+  border:1px solid rgba(0,255,136,0.2);
+}
+.card-body { padding:14px 16px; }
+
+/* ── OVERVIEW STAT BOXES ── */
+.stat-box {
+  background:var(--surface); border:1px solid var(--border); border-radius:14px;
+  padding:16px; text-align:center;
+}
+.stat-box .val {
+  font-family:'IBM Plex Mono',monospace; font-size:2rem;
+  font-weight:700; color:var(--green); line-height:1;
+}
+.stat-box .lbl {
+  font-size:0.68rem; color:var(--dim);
+  font-family:'IBM Plex Mono',monospace;
+  text-transform:uppercase; letter-spacing:1px; margin-top:5px;
+}
+
+/* ── CHOICE BARS ── */
+.choice-row {
+  display:flex; align-items:center; gap:10px;
+  padding:8px 0; border-bottom:1px solid var(--border);
+}
+.choice-row:last-child { border-bottom:none; }
+.choice-emoji { font-size:1.1rem; width:26px; text-align:center; flex-shrink:0; }
+.choice-name { font-size:0.82rem; font-weight:700; width:80px; flex-shrink:0; }
+.choice-name.rock { color:var(--rock-c); }
+.choice-name.paper { color:var(--paper-c); }
+.choice-name.scissors { color:var(--sci-c); }
+.bar-wrap { flex:1; height:10px; background:var(--border); border-radius:10px; overflow:hidden; }
+.bar { height:100%; border-radius:10px; transition:width 0.8s cubic-bezier(.2,.8,.2,1); }
+.bar.rock { background:var(--rock-c); }
+.bar.paper { background:var(--paper-c); }
+.bar.scissors { background:var(--sci-c); }
+.bar-pct {
+  font-family:'IBM Plex Mono',monospace; font-size:0.72rem;
+  font-weight:700; width:38px; text-align:left; flex-shrink:0;
+}
+.bar-pct.rock { color:var(--rock-c); }
+.bar-pct.paper { color:var(--paper-c); }
+.bar-pct.scissors { color:var(--sci-c); }
+.bar-count { font-size:0.62rem; color:var(--dim); font-family:'IBM Plex Mono',monospace; width:44px; text-align:left; }
+
+/* ── POSITION HEATMAP ── */
+.pos-grid {
+  display:grid; grid-template-columns:repeat(3,1fr); gap:8px; direction:ltr; margin-top:4px;
+}
+.pos-cell {
+  background:var(--bg); border:1px solid var(--border); border-radius:10px;
+  padding:10px 6px; text-align:center;
+}
+.pos-cell .pos-label { font-size:0.58rem; font-family:'IBM Plex Mono',monospace; color:var(--dim); text-transform:uppercase; margin-bottom:6px; }
+.pos-cell .pos-bars { display:flex; flex-direction:column; gap:3px; }
+.pos-cell .pos-bar-row { display:flex; align-items:center; gap:4px; }
+.pos-cell .pos-bar-wrap { flex:1; height:5px; background:var(--border); border-radius:5px; overflow:hidden; }
+.pos-cell .pos-bar { height:100%; border-radius:5px; }
+.pos-cell .pos-bar.rock { background:var(--rock-c); }
+.pos-cell .pos-bar.paper { background:var(--paper-c); }
+.pos-cell .pos-bar.scissors { background:var(--sci-c); }
+.pos-cell .pos-pct { font-size:0.58rem; font-family:'IBM Plex Mono',monospace; width:28px; }
+
+/* ── STRATEGY TABLE ── */
+.strat-table { width:100%; border-collapse:collapse; }
+.strat-table th {
+  font-family:'IBM Plex Mono',monospace; font-size:0.58rem;
+  color:var(--dim); text-transform:uppercase; letter-spacing:1px;
+  padding:6px 10px; border-bottom:1px solid var(--border);
+  text-align:right; font-weight:600;
+}
+.strat-table td {
+  padding:8px 10px; border-bottom:1px solid var(--border);
+  font-size:0.8rem;
+}
+.strat-table tr:last-child td { border-bottom:none; }
+.strat-table tr:hover td { background:rgba(255,255,255,0.02); }
+.strat-pct {
+  font-family:'IBM Plex Mono',monospace; font-size:0.82rem; font-weight:700;
+}
+.strat-bar-cell { width:120px; }
+.strat-mini-bar { height:6px; border-radius:6px; background:var(--green); transition:width 0.8s cubic-bezier(.2,.8,.2,1); }
+
+/* ── TRANSITION MATRIX ── */
+.matrix-wrap { overflow-x:auto; }
+.matrix {
+  border-collapse:collapse; font-family:'IBM Plex Mono',monospace;
+  font-size:0.7rem; margin:0 auto;
+}
+.matrix th, .matrix td {
+  padding:6px 10px; border:1px solid var(--border); text-align:center;
+}
+.matrix th { color:var(--dim); font-size:0.6rem; text-transform:uppercase; background:var(--bg); }
+.matrix td { background:var(--surface); }
+.matrix .cell-val { font-size:0.82rem; font-weight:700; }
+.matrix .cell-total { font-size:0.55rem; color:var(--dim); }
+.heat-0  { background:rgba(0,255,136,0.00) !important; }
+.heat-1  { background:rgba(0,255,136,0.06) !important; }
+.heat-2  { background:rgba(0,255,136,0.13) !important; }
+.heat-3  { background:rgba(0,255,136,0.22) !important; }
+.heat-4  { background:rgba(0,255,136,0.34) !important; }
+
+/* ── TIMELINE CHART ── */
+.timeline-canvas { width:100%; height:160px; display:block; }
+
+/* ── W/L DONUT ── */
+.donut-wrap { display:flex; align-items:center; gap:20px; }
+.donut-canvas { flex-shrink:0; }
+.donut-legend { display:flex; flex-direction:column; gap:8px; }
+.legend-row { display:flex; align-items:center; gap:8px; font-size:0.78rem; }
+.legend-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+
+/* ── INSIGHT PILLS ── */
+.insights { display:flex; flex-direction:column; gap:8px; }
+.insight {
+  display:flex; align-items:flex-start; gap:10px;
+  padding:10px 12px; border-radius:10px;
+  background:var(--bg); border:1px solid var(--border);
+}
+.insight-icon { font-size:1rem; flex-shrink:0; margin-top:1px; }
+.insight-text { font-size:0.8rem; line-height:1.5; }
+.insight-text strong { color:var(--green); }
+.insight.warn { border-color:rgba(255,215,0,0.25); background:rgba(255,215,0,0.03); }
+.insight.warn .insight-text strong { color:var(--yellow); }
+
+/* ── EMPTY / LOADING ── */
+.empty { text-align:center; padding:48px 20px; color:var(--dim); }
+.empty .icon { font-size:2.4rem; margin-bottom:12px; opacity:0.4; }
+.empty p { font-size:0.85rem; line-height:1.6; }
+.loader {
+  display:flex; align-items:center; justify-content:center; gap:10px;
+  padding:40px; color:var(--dim);
+  font-family:'IBM Plex Mono',monospace; font-size:0.8rem;
+}
+.spinner {
+  width:18px; height:18px; border:2px solid var(--border);
+  border-top-color:var(--green); border-radius:50%;
+  animation:spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* ── PLAYER LEADERBOARD ── */
+.lb-row {
+  display:flex; align-items:center; gap:10px;
+  padding:8px 0; border-bottom:1px solid var(--border);
+}
+.lb-row:last-child { border-bottom:none; }
+.lb-rank {
+  font-family:'IBM Plex Mono',monospace; font-size:0.72rem;
+  color:var(--dim); width:22px; text-align:center; flex-shrink:0;
+}
+.lb-name { flex:1; font-size:0.85rem; font-weight:700; }
+.lb-games { font-family:'IBM Plex Mono',monospace; font-size:0.72rem; color:var(--dim); }
+.lb-choice { font-size:0.72rem; font-weight:700; }
+.lb-choice.rock { color:var(--rock-c); }
+.lb-choice.paper { color:var(--paper-c); }
+.lb-choice.scissors { color:var(--sci-c); }
+
+/* ── TOAST ── */
+.toast {
+  position:fixed; bottom:24px; left:50%;
+  transform:translateX(-50%) translateY(80px);
+  background:var(--surface); border:1px solid var(--green); color:var(--green);
+  padding:8px 20px; border-radius:50px; font-size:0.8rem;
+  font-family:'IBM Plex Mono',monospace; z-index:200;
+  transition:transform 0.3s; white-space:nowrap;
+}
+.toast.show { transform:translateX(-50%) translateY(0); }
+
+/* ── DIVIDER ── */
+.divider { height:1px; background:var(--border); margin:4px 0; }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav">
+  <a href=".." class="nav-back">← משחק</a>
+  <div class="nav-icon">📊</div>
+  <div>
+    <div class="nav-title">סטטיסטיקות RPS</div>
+    <div class="nav-sub">ANALYTICS DASHBOARD</div>
+  </div>
+  <a href="cheat/" class="nav-back">רמאות →</a>
+</nav>
+
+<!-- FILTER BAR -->
+<div class="filter-bar">
+  <div class="filter-input-wrap" id="name-wrap">
+    <input type="text" class="filter-input" id="player-filter"
+      placeholder="סנן לפי שחקן..." autocomplete="off"
+      oninput="onFilterInput()" onkeydown="onFilterKeydown(event)">
+    <div class="ac-drop" id="ac-drop"></div>
+  </div>
+  <div class="filter-chips">
+    <div class="chip active" id="chip-all"  onclick="setModeFilter('all')">הכל</div>
+    <div class="chip"        id="chip-app"  onclick="setModeFilter('online')">📱 אפליקציה</div>
+    <div class="chip"        id="chip-phys" onclick="setModeFilter('local')">🤝 פיזי</div>
+  </div>
+  <button class="clear-btn" onclick="clearFilter()">× נקה</button>
+</div>
+
+<!-- PAGE CONTENT -->
+<div class="page" id="page">
+  <div class="loader" id="loader"><div class="spinner"></div> טוען נתונים...</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="../rps-engine.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
+import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyA-IW5ESE-eBuyMBfreGmyPdQV7YmkfmGs",
+  authDomain: "rock-paper-scissors-stats.firebaseapp.com",
+  databaseURL: "https://rock-paper-scissors-stats-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "rock-paper-scissors-stats",
+  storageBucket: "rock-paper-scissors-stats.firebasestorage.app",
+  messagingSenderId: "358139389618",
+  appId: "1:358139389618:web:c27497f5d7a5b23beb4bab"
+};
+
+const app = initializeApp(firebaseConfig);
+const db  = getDatabase(app);
+
+// ── מנוע החישוב המשותף ──
+const RPSEngine = window.RPSEngine;
+const { EMOJI, HEB, BEATS, BEATEN_BY: BEATEN, CHOICES } = RPSEngine;
+
+let allGames    = [];
+let allPlayers  = [];
+let filterName  = '';
+let filterMode  = 'all';
+let acHighlight = -1;
+
+function el(id) { return document.getElementById(id); }
+function showToast(msg) {
+  const t = el('toast'); t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+// ── LOAD ──
+async function load() {
+  try {
+    const snap = await get(ref(db, 'games'));
+    if (!snap.exists()) { el('loader').innerHTML='<div class="empty"><div class="icon">🎯</div><p>אין נתונים עדיין</p></div>'; return; }
+    allGames = Object.entries(snap.val())
+      .map(([id,g])=>({id,...g}))
+      .filter(g=>!g.cheated && !g.cpuCheat);
+    const pSet = new Set();
+    allGames.forEach(g=>{
+      if(g.p1 && g.p1!=='unknown') pSet.add(g.p1);
+      if(g.p2 && g.p2!=='unknown') pSet.add(g.p2);
+    });
+    allPlayers = [...pSet].sort((a,b)=>a.localeCompare(b,'he'));
+    el('loader').remove();
+    render();
+  } catch(e) {
+    el('loader').innerHTML=`<div class="empty"><div class="icon">⚠️</div><p>שגיאת חיבור: ${e.message}</p></div>`;
+  }
+}
+
+// ── FILTER LOGIC ──
+function getFilteredGames() {
+  return allGames.filter(g => {
+    if (filterMode !== 'all' && g.mode !== filterMode) return false;
+    if (!filterName) return true;
+    return g.p1 === filterName || g.p2 === filterName;
+  });
+}
+
+// For a specific player, normalise their perspective
+function getPlayerGames(games, name) {
+  return games
+    .filter(g => g.p1===name || g.p2===name)
+    .map(g => ({
+      ...g,
+      myChoice:  g.p1===name ? g.p1Choice : g.p2Choice,
+      oppChoice: g.p1===name ? g.p2Choice : g.p1Choice,
+      myPos:     g.p1===name ? g.p1ChoicePosition : g.p2ChoicePosition,
+      oppPos:    g.p1===name ? g.p2ChoicePosition : g.p1ChoicePosition,
+      outcome:   g.result==='draw' ? 'tie' : (g.p1===name ? g.result==='p1_win' : g.result==='p2_win') ? 'win' : 'loss',
+      prevOut:   g.p1===name ? g.p1PrevOutcome : g.p2PrevOutcome,
+    }));
+}
+
+// ── AUTOCOMPLETE ──
+window.onFilterInput = function() {
+  const val  = el('player-filter').value.trim().toLowerCase();
+  const drop = el('ac-drop');
+  acHighlight = -1;
+  if (!val) { drop.classList.remove('show'); filterName=''; render(); return; }
+  const matches = allPlayers.filter(p=>p.toLowerCase().includes(val)).slice(0,8);
+  if (!matches.length) { drop.classList.remove('show'); return; }
+  drop.innerHTML = matches.map((p,i)=>{
+    const idx = p.toLowerCase().indexOf(val);
+    const hi = p.slice(0,idx)+'<strong style="color:var(--green)">'+p.slice(idx,idx+val.length)+'</strong>'+p.slice(idx+val.length);
+    return `<div class="ac-item" data-name="${p}" data-i="${i}" onmousedown="pickPlayer('${p.replace(/'/g,"\\'")}')">👤 ${hi}</div>`;
+  }).join('');
+  drop.classList.add('show');
+};
+window.onFilterKeydown = function(e) {
+  const drop=el('ac-drop'), items=drop.querySelectorAll('.ac-item');
+  if (!drop.classList.contains('show')||!items.length){if(e.key==='Enter'){e.preventDefault();applyNameFilter(el('player-filter').value.trim());} return;}
+  if(e.key==='ArrowDown'){e.preventDefault();acHighlight=Math.min(acHighlight+1,items.length-1);items.forEach((x,i)=>x.classList.toggle('hl',i===acHighlight));}
+  else if(e.key==='ArrowUp'){e.preventDefault();acHighlight=Math.max(acHighlight-1,0);items.forEach((x,i)=>x.classList.toggle('hl',i===acHighlight));}
+  else if(e.key==='Enter'){e.preventDefault();if(acHighlight>=0&&items[acHighlight])pickPlayer(items[acHighlight].dataset.name);else applyNameFilter(el('player-filter').value.trim());}
+  else if(e.key==='Escape')drop.classList.remove('show');
+};
+window.pickPlayer = function(name) {
+  el('player-filter').value=name; el('ac-drop').classList.remove('show');
+  applyNameFilter(name);
+};
+function applyNameFilter(name) { filterName=name||''; render(); }
+document.addEventListener('click', e=>{ if(!e.target.closest('#name-wrap')) el('ac-drop').classList.remove('show'); });
+
+window.setModeFilter = function(mode) {
+  filterMode = mode;
+  ['all','app','phys'].forEach(k => el('chip-'+k)?.classList.remove('active'));
+  el('chip-'+(mode==='online'?'app':mode==='local'?'phys':'all'))?.classList.add('active');
+  render();
+};
+window.clearFilter = function() {
+  filterName=''; filterMode='all';
+  el('player-filter').value='';
+  ['all','app','phys'].forEach(k=>el('chip-'+k)?.classList.remove('active'));
+  el('chip-all')?.classList.add('active');
+  render();
+};
+
+// ── MAIN RENDER ──
+function render() {
+  const games   = getFilteredGames();
+  const page    = el('page');
+  const isPlayer = !!filterName;
+  const pgames  = isPlayer ? getPlayerGames(games, filterName) : null;
+
+  if (!games.length) {
+    page.innerHTML = `<div class="empty"><div class="icon">🔍</div><p>אין משחקים תואמים לסינון הנוכחי</p></div>`;
+    return;
+  }
+
+  let html = '';
+
+  // ── OVERVIEW ──
+  html += `<div class="section-title">סקירה כללית</div>`;
+  html += renderOverview(games, pgames, filterName);
+
+  // ── CHOICE DISTRIBUTION ──
+  html += `<div class="section-title" style="margin-top:20px">התפלגות בחירות${isPlayer?' של '+filterName:''}</div>`;
+  html += renderChoiceDist(games, pgames, filterName);
+
+  // ── POSITION INFLUENCE ──
+  html += `<div class="section-title" style="margin-top:20px">השפעת מיקום</div>`;
+  html += renderPositionInfluence(games, pgames, filterName);
+
+  // ── STRATEGY PATTERNS ──
+  html += `<div class="section-title" style="margin-top:20px">אסטרטגיות זוהו</div>`;
+  html += renderStrategies(games, pgames, filterName);
+
+  // ── TRANSITION MATRIX ──
+  if (isPlayer && pgames.length >= 6) {
+    html += `<div class="section-title" style="margin-top:20px">מטריצת מעברים — מה ה${filterName} עושה אחרי כל בחירה</div>`;
+    html += renderTransitionMatrix(pgames);
+  }
+
+  // ── PLAYER LEADERBOARD (only when not filtered) ──
+  if (!isPlayer) {
+    html += `<div class="section-title" style="margin-top:20px">שחקנים</div>`;
+    html += renderLeaderboard(games);
+  }
+
+  // ── INSIGHTS ──
+  html += `<div class="section-title" style="margin-top:20px">תובנות</div>`;
+  html += renderInsights(games, pgames, filterName);
+
+  page.innerHTML = html;
+
+  // Draw canvases after DOM insert
+  drawTimeline(games, pgames, filterName);
+}
+
+// ── OVERVIEW ──
+function renderOverview(games, pgames, name) {
+  const total = games.length;
+  const players = new Set();
+  games.forEach(g=>{ if(g.p1&&g.p1!=='unknown')players.add(g.p1); if(g.p2&&g.p2!=='unknown')players.add(g.p2); });
+
+  let winRate = '—', winsN = '—', gamesN = total;
+  if (pgames) {
+    const wins  = pgames.filter(g=>g.outcome==='win').length;
+    const draws = pgames.filter(g=>g.outcome==='tie').length;
+    const losses= pgames.filter(g=>g.outcome==='loss').length;
+    gamesN = pgames.length;
+    winRate = pgames.length ? Math.round(wins/pgames.length*100)+'%' : '—';
+    winsN   = wins;
+  }
+
+  const appCount  = games.filter(g=>g.mode==='online').length;
+  const physCount = games.filter(g=>g.mode==='local').length;
+
+  let boxes = '';
+  if (pgames) {
+    const wins   = pgames.filter(g=>g.outcome==='win').length;
+    const losses = pgames.filter(g=>g.outcome==='loss').length;
+    const draws  = pgames.filter(g=>g.outcome==='tie').length;
+    boxes = `
+      <div class="stat-box"><div class="val">${gamesN}</div><div class="lbl">משחקים</div></div>
+      <div class="stat-box"><div class="val" style="color:var(--green)">${wins}</div><div class="lbl">ניצחונות</div></div>
+      <div class="stat-box"><div class="val" style="color:var(--red)">${losses}</div><div class="lbl">הפסדים</div></div>
+      <div class="stat-box"><div class="val" style="color:var(--yellow)">${draws}</div><div class="lbl">תיקו</div></div>
+      <div class="stat-box"><div class="val" style="color:${parseInt(winRate)>=50?'var(--green)':'var(--red)'}">${winRate}</div><div class="lbl">אחוז ניצחון</div></div>
+    `;
+  } else {
+    boxes = `
+      <div class="stat-box"><div class="val">${total}</div><div class="lbl">משחקים סה"כ</div></div>
+      <div class="stat-box"><div class="val">${players.size}</div><div class="lbl">שחקנים</div></div>
+      <div class="stat-box"><div class="val" style="color:var(--blue)">${appCount}</div><div class="lbl">📱 אפליקציה</div></div>
+      <div class="stat-box"><div class="val" style="color:var(--yellow)">${physCount}</div><div class="lbl">🤝 פיזי</div></div>
+    `;
+  }
+
+  return `
+    <div class="grid-auto">${boxes}</div>
+    <div class="card" style="margin-top:10px">
+      <div class="card-header">טיימליין משחקים</div>
+      <div class="card-body" style="padding:10px 16px">
+        <canvas class="timeline-canvas" id="timeline-canvas"></canvas>
+      </div>
+    </div>
+  `;
+}
+
+// ── CHOICE DISTRIBUTION ──
+function renderChoiceDist(games, pgames, name) {
+  const src = pgames || [];
+  const rawGames = pgames ? pgames : games;
+
+  // All choices in a flat list
+  const choices_list = pgames
+    ? pgames.map(g=>g.myChoice).filter(Boolean)
+    : games.flatMap(g=>[g.p1Choice,g.p2Choice]).filter(Boolean);
+
+  const counts = { rock:0, paper:0, scissors:0 };
+  choices_list.forEach(c=>{ if(counts[c]!==undefined) counts[c]++; });
+  const total = counts.rock+counts.paper+counts.scissors || 1;
+  const max   = Math.max(...Object.values(counts)) || 1;
+
+  const rows = CHOICES.map(c=>`
+    <div class="choice-row">
+      <div class="choice-emoji">${EMOJI[c]}</div>
+      <div class="choice-name ${c}">${HEB[c]}</div>
+      <div class="bar-wrap"><div class="bar ${c}" style="width:${(counts[c]/max*100).toFixed(1)}%"></div></div>
+      <div class="bar-pct ${c}">${Math.round(counts[c]/total*100)}%</div>
+      <div class="bar-count">${counts[c]}</div>
+    </div>`).join('');
+
+  // Win/lose per choice (only if player-filtered)
+  let winPerChoice = '';
+  if (pgames) {
+    const wRows = CHOICES.map(c=>{
+      const cg    = pgames.filter(g=>g.myChoice===c);
+      const wins  = cg.filter(g=>g.outcome==='win').length;
+      const losses= cg.filter(g=>g.outcome==='loss').length;
+      const wr    = cg.length ? Math.round(wins/cg.length*100) : 0;
+      return `
+        <div class="choice-row">
+          <div class="choice-emoji">${EMOJI[c]}</div>
+          <div class="choice-name ${c}">${HEB[c]}</div>
+          <div class="bar-wrap">
+            <div style="display:flex;height:100%;border-radius:10px;overflow:hidden;">
+              <div style="background:var(--green);width:${wr}%;transition:width 0.8s"></div>
+              <div style="background:var(--red);width:${cg.length?Math.round(losses/cg.length*100):0}%;transition:width 0.8s"></div>
+            </div>
+          </div>
+          <div class="bar-pct" style="color:${wr>=50?'var(--green)':'var(--red)'}">${wr}%</div>
+          <div class="bar-count">${cg.length}</div>
+        </div>`;
+    }).join('');
+    winPerChoice = `
+      <div class="card">
+        <div class="card-header">אחוז ניצחון לפי בחירה</div>
+        <div class="card-body">${wRows}</div>
+      </div>`;
+  }
+
+  return `
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header">תדירות בחירות <span class="badge">${total} סה"כ</span></div>
+        <div class="card-body">${rows}</div>
+      </div>
+      ${winPerChoice || `<div class="card"><div class="card-header">בחירות נפוצות של יריבים</div><div class="card-body">${renderOppDist(games)}</div></div>`}
+    </div>`;
+}
+
+function renderOppDist(games) {
+  // From global perspective, just counts of all p2 choices
+  const counts = {rock:0,paper:0,scissors:0};
+  games.forEach(g=>{
+    if(counts[g.p2Choice]!==undefined) counts[g.p2Choice]++;
+    if(counts[g.p1Choice]!==undefined) counts[g.p1Choice]++;
+  });
+  const total = counts.rock+counts.paper+counts.scissors||1;
+  const max   = Math.max(...Object.values(counts))||1;
+  return CHOICES.map(c=>`
+    <div class="choice-row">
+      <div class="choice-emoji">${EMOJI[c]}</div>
+      <div class="choice-name ${c}">${HEB[c]}</div>
+      <div class="bar-wrap"><div class="bar ${c}" style="width:${(counts[c]/max*100).toFixed(1)}%"></div></div>
+      <div class="bar-pct ${c}">${Math.round(counts[c]/total*100)}%</div>
+      <div class="bar-count">${counts[c]}</div>
+    </div>`).join('');
+}
+
+// ── POSITION INFLUENCE ──
+function renderPositionInfluence(games, pgames, name) {
+  // Build position→choice counts for the relevant player set
+  const src = pgames
+    ? pgames.map(g=>({choice:g.myChoice, pos:g.myPos}))
+    : games.flatMap(g=>[{choice:g.p1Choice,pos:g.p1ChoicePosition},{choice:g.p2Choice,pos:g.p2ChoicePosition}]);
+
+  const posCounts = {};
+  ['left','center','right'].forEach(p=>{ posCounts[p]={rock:0,paper:0,scissors:0,total:0}; });
+  let total=0;
+  src.forEach(({choice,pos})=>{
+    if(!pos||pos==='unknown'||!CHOICES.includes(choice)) return;
+    if(!posCounts[pos]) return;
+    posCounts[pos][choice]++;
+    posCounts[pos].total++;
+    total++;
+  });
+
+  if(total<6) return `<div class="card"><div class="card-body"><div class="empty" style="padding:24px"><div class="icon">📍</div><p>אין מספיק נתוני מיקום עדיין</p></div></div></div>`;
+
+  // Compute base rates
+  const baseGames = src.filter(({choice})=>CHOICES.includes(choice));
+  const baseTot   = baseGames.length || 1;
+  const base      = {};
+  CHOICES.forEach(c=>base[c]=baseGames.filter(g=>g.choice===c).length/baseTot);
+
+  // Influence score per position
+  const posNames = { left:'שמאל', center:'אמצע', right:'ימין' };
+  const cells = ['left','center','right'].map(pos=>{
+    const pc = posCounts[pos];
+    if(pc.total<3) return `<div class="pos-cell"><div class="pos-label">${posNames[pos]}</div><div style="font-size:0.65rem;color:var(--dim);text-align:center;margin-top:8px">אין מספיק נתונים</div></div>`;
+    const bars = CHOICES.map(c=>{
+      const pct = Math.round(pc[c]/pc.total*100);
+      const basePct = Math.round(base[c]*100);
+      const diff = pct - basePct;
+      const col  = c==='rock'?'var(--rock-c)':c==='paper'?'var(--paper-c)':'var(--sci-c)';
+      return `<div class="pos-bar-row">
+        <span style="font-size:0.7rem;width:14px">${EMOJI[c]}</span>
+        <div class="pos-bar-wrap"><div class="pos-bar ${c}" style="width:${pct}%"></div></div>
+        <span class="pos-pct" style="color:${col}">${pct}%</span>
+        <span style="font-size:0.55rem;color:${diff>3?'var(--green)':diff<-3?'var(--red)':'var(--dim)'};">${diff>0?'+':''}${diff}%</span>
+      </div>`;
+    }).join('');
+    return `<div class="pos-cell"><div class="pos-label">${posNames[pos]} · ${pc.total}</div><div class="pos-bars">${bars}</div></div>`;
+  }).join('');
+
+  // Overall influence magnitude
+  let totalDev=0, cnt=0;
+  ['left','center','right'].forEach(pos=>{
+    const pc=posCounts[pos]; if(pc.total<3) return;
+    CHOICES.forEach(c=>{ totalDev+=Math.abs(pc[c]/pc.total - base[c]); cnt++; });
+  });
+  const influence = cnt>0 ? Math.round(totalDev/cnt*100) : 0;
+  const level = influence>15?'גבוהה מאוד':influence>8?'גבוהה':influence>4?'בינונית':'נמוכה';
+  const col   = influence>15?'var(--green)':influence>8?'var(--yellow)':influence>4?'var(--blue)':'var(--dim)';
+
+  return `
+    <div class="card">
+      <div class="card-header">מיקום לפי בחירה <span class="badge" style="color:${col};border-color:${col};background:transparent">השפעה: ${level} (${influence}%)</span></div>
+      <div class="card-body">
+        <div class="pos-grid">${cells}</div>
+        <div style="margin-top:10px;font-size:0.72rem;color:var(--dim);font-family:'IBM Plex Mono',monospace">
+          % מציג את השיעור באותו מיקום · +/- ביחס לממוצע הכללי
+        </div>
+      </div>
+    </div>`;
+}
+
+// ── STRATEGIES ──
+function renderStrategies(games, pgames, name) {
+  const sorted = (pgames ? pgames.map(g=>({...g,playerChoice:g.myChoice,prevOutcome:g.prevOut}))
+    : games.flatMap(g=>[
+        {...g,playerChoice:g.p1Choice,prevOutcome:g.p1PrevOutcome,prevChoice:null},
+        {...g,playerChoice:g.p2Choice,prevOutcome:g.p2PrevOutcome,prevChoice:null}
+      ])
+  ).filter(g=>g.timestamp&&CHOICES.includes(g.playerChoice))
+   .sort((a,b)=>a.timestamp-b.timestamp);
+
+  // Win-Stay
+  let wsHit=0,wsTotal=0, lsHit=0,lsTotal=0;
+  for(let i=1;i<sorted.length;i++){
+    const g=sorted[i],prev=sorted[i-1];
+    if(g.prevOutcome==='win'){wsTotal++;if(g.playerChoice===prev.playerChoice)wsHit++;}
+    else if(g.prevOutcome==='loss'){lsTotal++;if(g.playerChoice===BEATEN[BEATEN[prev.playerChoice]])lsHit++;}
+  }
+  const wsRate = wsTotal>=3 ? Math.round(wsHit/wsTotal*100) : null;
+  const lsRate = lsTotal>=3 ? Math.round(lsHit/lsTotal*100) : null;
+
+  // Post-tie
+  let tieTot=0, tieNext={rock:0,paper:0,scissors:0};
+  for(let i=1;i<sorted.length;i++){
+    if(sorted[i].prevOutcome==='tie'&&CHOICES.includes(sorted[i].playerChoice)){
+      tieNext[sorted[i].playerChoice]++; tieTot++;
+    }
+  }
+  const tiePref = tieTot>=4 ? CHOICES.reduce((a,b)=>tieNext[a]>tieNext[b]?a:b) : null;
+  const tiePct  = tiePref ? Math.round(tieNext[tiePref]/tieTot*100) : null;
+
+  // Streak avoidance (3-in-a-row rate)
+  let strOpps=0,strRepeats=0;
+  for(let i=2;i<sorted.length;i++){
+    if(sorted[i-1].playerChoice===sorted[i-2].playerChoice){
+      strOpps++;
+      if(sorted[i].playerChoice===sorted[i-1].playerChoice) strRepeats++;
+    }
+  }
+  const strRate = strOpps>=5 ? Math.round(strRepeats/strOpps*100) : null;
+
+  // Mirror (copy what beat you)
+  let mirTot=0,mirHit=0;
+  for(let i=1;i<sorted.length;i++){
+    const g=sorted[i],prev=sorted[i-1];
+    if(g.prevOutcome==='loss'){mirTot++;if(g.playerChoice===BEATS[prev.playerChoice])mirHit++;}
+  }
+  const mirRate = mirTot>=5 ? Math.round(mirHit/mirTot*100) : null;
+
+  // Upgrade/downgrade (RPS cycle direction)
+  const cycleUp = ['rock','paper','scissors']; // rock→paper→scissors = upgrade
+  let upCnt=0,downCnt=0,sameCnt=0,cycleTot=0;
+  for(let i=1;i<sorted.length;i++){
+    const g=sorted[i],prev=sorted[i-1];
+    if(!CHOICES.includes(g.playerChoice)||!CHOICES.includes(prev.playerChoice)) continue;
+    if(g.playerChoice===prev.playerChoice){sameCnt++;cycleTot++;continue;}
+    const prevIdx=cycleUp.indexOf(prev.playerChoice);
+    const nextIdx=cycleUp.indexOf(g.playerChoice);
+    const delta=(nextIdx-prevIdx+3)%3;
+    if(delta===1)upCnt++;else downCnt++;
+    cycleTot++;
+  }
+  const upRate   = cycleTot>=6 ? Math.round(upCnt/(cycleTot-sameCnt)*100) : null;
+
+  const strats = [
+    { label:'Win-Stay', sub:'חוזר על אותה בחירה אחרי ניצ׳', val:wsRate, total:wsTotal, base:33, higher:'כן' },
+    { label:'Lose-Shift', sub:'עובר לאחרי הפסד', val:lsRate, total:lsTotal, base:33, higher:'כן' },
+    { label:'חיקוי (מראה)', sub:'מעתיק מה שניצח אותו', val:mirRate, total:mirTot, base:33, higher:'כן' },
+    { label:'אחרי תיקו → '+( tiePref?HEB[tiePref]:'—'), sub:`נוטה ל${tiePref?HEB[tiePref]:'—'} לאחר תיקו`, val:tiePct, total:tieTot, base:33, higher:'כן' },
+    { label:'3 ברצף', sub:'חוזר על בחירה שלישית ברצף', val:strRate, total:strOpps, base:33, higher:'לא' },
+    { label:'מעבר כלפי מעלה', sub:'זז "קדימה" במחזור (אבן→נייר→מספ)', val:upRate, total:cycleTot, base:50, higher:'כן' },
+  ].filter(s=>s.val!==null);
+
+  if(!strats.length) return `<div class="card"><div class="card-body"><div class="empty" style="padding:20px"><div class="icon">🧠</div><p>אין מספיק נתונים לניתוח אסטרטגיות</p></div></div></div>`;
+
+  const maxVal = Math.max(...strats.map(s=>s.val));
+  const rows   = strats.map(s=>{
+    const deviation = s.val - s.base;
+    const strong    = Math.abs(deviation) > 12;
+    const col       = strong ? (deviation>0?'var(--green)':'var(--red)') : 'var(--text)';
+    const barPct    = Math.round(s.val / (maxVal||1) * 100);
+    return `<tr>
+      <td><div style="font-weight:700;font-size:0.82rem">${s.label}</div><div style="font-size:0.68rem;color:var(--dim);margin-top:2px">${s.sub}</div></td>
+      <td class="strat-pct" style="color:${col}">${s.val}%</td>
+      <td style="color:var(--dim);font-family:'IBM Plex Mono',monospace;font-size:0.72rem">בסיס ${s.base}%</td>
+      <td class="strat-bar-cell"><div class="strat-mini-bar" style="width:${barPct}%;background:${col}"></div></td>
+      <td style="font-size:0.68rem;color:var(--dim);font-family:'IBM Plex Mono',monospace">${s.total} תצפיות</td>
+    </tr>`;
+  }).join('');
+
+  return `
+    <div class="card">
+      <div class="card-header">דפוסי אסטרטגיה <span class="badge">${sorted.length} משחקים</span></div>
+      <div class="card-body" style="padding:0">
+        <table class="strat-table">
+          <thead><tr>
+            <th>אסטרטגיה</th><th>שיעור</th><th>בסיס</th><th style="width:120px">עוצמה</th><th>נתונים</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+// ── TRANSITION MATRIX ──
+function renderTransitionMatrix(pgames) {
+  const sorted = pgames.filter(g=>g.timestamp&&CHOICES.includes(g.myChoice))
+    .sort((a,b)=>a.timestamp-b.timestamp);
+
+  const mat = {};
+  CHOICES.forEach(from=>{ mat[from]={rock:0,paper:0,scissors:0,total:0}; });
+  for(let i=1;i<sorted.length;i++){
+    const prev=sorted[i-1], curr=sorted[i];
+    if(!CHOICES.includes(prev.myChoice)||!CHOICES.includes(curr.myChoice)) continue;
+    mat[prev.myChoice][curr.myChoice]++;
+    mat[prev.myChoice].total++;
+  }
+
+  const heatClass = pct => pct>=60?'heat-4':pct>=45?'heat-3':pct>=33?'heat-2':pct>=20?'heat-1':'heat-0';
+
+  const headerRow = `<tr><th>מ↓ ל→</th>${CHOICES.map(c=>`<th>${EMOJI[c]} ${HEB[c]}</th>`).join('')}<th>סה"כ</th></tr>`;
+  const bodyRows  = CHOICES.map(from=>{
+    const row = mat[from];
+    const cells = CHOICES.map(to=>{
+      const pct = row.total>0 ? Math.round(row[to]/row.total*100) : 0;
+      return `<td class="${heatClass(pct)}"><div class="cell-val">${pct}%</div><div class="cell-total">${row[to]}</div></td>`;
+    }).join('');
+    return `<tr><th>${EMOJI[from]} ${HEB[from]}</th>${cells}<td style="color:var(--dim);font-size:0.65rem">${row.total}</td></tr>`;
+  }).join('');
+
+  return `
+    <div class="card">
+      <div class="card-header">מה נבחר אחרי מה <span class="badge">% מתוך שורה</span></div>
+      <div class="card-body">
+        <div class="matrix-wrap">
+          <table class="matrix"><thead>${headerRow}</thead><tbody>${bodyRows}</tbody></table>
+        </div>
+        <div style="margin-top:10px;font-size:0.65rem;color:var(--dim);font-family:'IBM Plex Mono',monospace">
+          ירוק = סיכוי גבוה · כל שורה = בחירה קודמת
+        </div>
+      </div>
+    </div>`;
+}
+
+// ── LEADERBOARD ──
+function renderLeaderboard(games) {
+  const stats = {};
+  games.forEach(g=>{
+    [['p1',g.p1,g.p1Choice,g.result==='p1_win'?'win':g.result==='p2_win'?'loss':'tie'],
+     ['p2',g.p2,g.p2Choice,g.result==='p2_win'?'win':g.result==='p1_win'?'loss':'tie']]
+    .forEach(([,name,choice,outcome])=>{
+      if(!name||name==='unknown') return;
+      if(!stats[name]) stats[name]={name,games:0,wins:0,rock:0,paper:0,scissors:0};
+      stats[name].games++;
+      if(outcome==='win') stats[name].wins++;
+      if(CHOICES.includes(choice)) stats[name][choice]++;
+    });
+  });
+
+  const sorted = Object.values(stats)
+    .filter(s=>s.games>=2)
+    .sort((a,b)=>b.games-a.games)
+    .slice(0,15);
+
+  if(!sorted.length) return `<div class="card"><div class="card-body"><div class="empty" style="padding:20px"><div class="icon">👥</div><p>אין שחקנים עם מספיק משחקים</p></div></div></div>`;
+
+  const rows = sorted.map((s,i)=>{
+    const fav = CHOICES.reduce((a,b)=>s[a]>s[b]?a:b);
+    const wr  = Math.round(s.wins/s.games*100);
+    return `<div class="lb-row">
+      <div class="lb-rank">${i+1}</div>
+      <div class="lb-name" style="cursor:pointer;transition:color 0.15s" onmouseover="this.style.color='var(--green)'" onmouseout="this.style.color=''" onclick="window.pickPlayer('${s.name.replace(/'/g,"\\'")}')">
+        ${s.name}
+      </div>
+      <div class="lb-games">${s.games} משחקים</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:0.72rem;color:${wr>=50?'var(--green)':'var(--dim)'};margin-right:8px">${wr}%</div>
+      <div class="lb-choice ${fav}">${EMOJI[fav]}</div>
+    </div>`;
+  }).join('');
+
+  return `<div class="card"><div class="card-header">לוח שחקנים <span class="badge">${sorted.length} שחקנים</span></div><div class="card-body">${rows}</div></div>`;
+}
+
+// ── INSIGHTS ──
+function renderInsights(games, pgames, name) {
+  const insights = [];
+  const src = pgames ? pgames.map(g=>g.myChoice) : games.flatMap(g=>[g.p1Choice,g.p2Choice]);
+  const cnt = {rock:0,paper:0,scissors:0};
+  src.forEach(c=>{ if(cnt[c]!==undefined) cnt[c]++; });
+  const tot = cnt.rock+cnt.paper+cnt.scissors||1;
+
+  // Rock bias
+  const rockPct = Math.round(cnt.rock/tot*100);
+  if(rockPct>38) insights.push({icon:'🪨',text:`<strong>נטייה לאבן:</strong> ${rockPct}% מהבחירות הן אבן (ממוצע צפוי ~33%). שחק נייר יותר.`,type:''});
+
+  // Scissors avoidance
+  const sciPct = Math.round(cnt.scissors/tot*100);
+  if(sciPct<25) insights.push({icon:'✂️',text:`<strong>הימנעות ממספריים:</strong> רק ${sciPct}% מספריים — שחקנים שמרנים ​​מאמינים שהיריב יבחר בנייר.`,type:'warn'});
+
+  // Win-stay strength (from pgames)
+  if(pgames) {
+    const s = pgames.filter(g=>g.timestamp&&CHOICES.includes(g.myChoice)).sort((a,b)=>a.timestamp-b.timestamp);
+    let wsh=0,wst=0;
+    for(let i=1;i<s.length;i++){
+      if(s[i].prevOut==='win'){wst++;if(s[i].myChoice===s[i-1].myChoice)wsh++;}
+    }
+    if(wst>=5){
+      const wr=Math.round(wsh/wst*100);
+      if(wr>55) insights.push({icon:'🏆',text:`<strong>Win-Stay חזק (${wr}%):</strong> ${name} חוזר על הבחירה המנצחת יותר ממחצית הזמן.`,type:''});
+      else if(wr<20) insights.push({icon:'🔀',text:`<strong>Win-Stay חלש (${wr}%):</strong> ${name} כמעט תמיד מחליף בחירה גם אחרי ניצחון.`,type:'warn'});
+    }
+  }
+
+  // Mode split
+  const appGames  = games.filter(g=>g.mode==='online').length;
+  const physGames = games.filter(g=>g.mode==='local').length;
+  if(appGames>0&&physGames>0){
+    const appPct=Math.round(appGames/(appGames+physGames)*100);
+    insights.push({icon:'📊',text:`<strong>${appPct}% אפליקציה, ${100-appPct}% פיזי</strong> — ${appGames+physGames} משחקים מחולקים לפי מצב.`,type:''});
+  }
+
+  if(!insights.length) insights.push({icon:'🤔',text:'<strong>אין מספיק נתונים</strong> לתובנות משמעותיות עדיין. שחק יותר!',type:'warn'});
+
+  return `<div class="insights">${insights.map(i=>`
+    <div class="insight ${i.type||''}">
+      <div class="insight-icon">${i.icon}</div>
+      <div class="insight-text">${i.text}</div>
+    </div>`).join('')}</div>`;
+}
+
+// ── TIMELINE CANVAS ──
+function drawTimeline(games, pgames, name) {
+  const canvas = el('timeline-canvas');
+  if(!canvas) return;
+  const W = canvas.offsetWidth||320, H=160;
+  canvas.width=W; canvas.height=H;
+  const ctx = canvas.getContext('2d');
+
+  const sorted = [...games].sort((a,b)=>(a.timestamp||0)-(b.timestamp||0));
+  if(sorted.length<2){ ctx.fillStyle='#444466'; ctx.font='12px IBM Plex Mono'; ctx.fillText('אין מספיק נתונים',W/2-60,H/2); return; }
+
+  const minT = sorted[0].timestamp||0;
+  const maxT = sorted[sorted.length-1].timestamp||minT+1;
+
+  // Bucket into ~20 bins
+  const BINS=Math.min(sorted.length,30);
+  const binSize=(maxT-minT)/BINS||1;
+  const bins = Array.from({length:BINS},()=>0);
+  sorted.forEach(g=>{ const b=Math.min(Math.floor((g.timestamp-minT)/binSize),BINS-1); bins[b]++; });
+  const maxBin=Math.max(...bins)||1;
+
+  const pad={l:8,r:8,t:10,b:28};
+  const gW=W-pad.l-pad.r, gH=H-pad.t-pad.b;
+  const bW=gW/BINS;
+
+  // Gradient fill
+  const grad=ctx.createLinearGradient(0,pad.t,0,pad.t+gH);
+  grad.addColorStop(0,'rgba(0,255,136,0.35)');
+  grad.addColorStop(1,'rgba(0,255,136,0.03)');
+
+  ctx.beginPath();
+  ctx.moveTo(pad.l,pad.t+gH);
+  bins.forEach((v,i)=>{
+    const x=pad.l+i*bW+bW/2;
+    const y=pad.t+gH - (v/maxBin)*gH;
+    if(i===0) ctx.lineTo(x,y); else ctx.lineTo(x,y);
+  });
+  ctx.lineTo(pad.l+gW,pad.t+gH);
+  ctx.closePath();
+  ctx.fillStyle=grad;
+  ctx.fill();
+
+  // Line
+  ctx.beginPath();
+  bins.forEach((v,i)=>{
+    const x=pad.l+i*bW+bW/2;
+    const y=pad.t+gH-(v/maxBin)*gH;
+    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  });
+  ctx.strokeStyle='#00ff88'; ctx.lineWidth=2; ctx.stroke();
+
+  // X labels (first and last date)
+  ctx.fillStyle='#444466'; ctx.font='10px IBM Plex Mono'; ctx.textAlign='left';
+  ctx.fillText(new Date(minT).toLocaleDateString('he-IL'),pad.l,H-6);
+  ctx.textAlign='right';
+  ctx.fillText(new Date(maxT).toLocaleDateString('he-IL'),W-pad.r,H-6);
+}
+
+load();
+</script>
+</body>
+</html>

@@ -1,0 +1,1941 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#00ff88">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="RPS Cheat">
+<title>רמאות אבן נייר ומספריים</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=Heebo:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #050508;
+    --surface: #0d0d14;
+    --border: #1e1e2e;
+    --green: #00ff88;
+    --red: #ff3355;
+    --yellow: #ffd700;
+    --blue: #4da6ff;
+    --dim: #444466;
+    --text: #e0e0f0;
+    --rock-c: #ff6b6b;
+    --paper-c: #4da6ff;
+    --scissors-c: #00ff88;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'Heebo', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── RESPONSIVE LAYOUT ── */
+  .app-shell {
+    display: flex;
+    flex: 1;
+    min-height: 100dvh;
+  }
+
+  /* Sidebar (desktop) */
+  .sidebar {
+    width: 100%;
+    max-width: 480px;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+
+  /* Main content pane */
+  .content-pane {
+    display: none; /* hidden on mobile, sidebar IS the content */
+  }
+
+  @media (min-width: 860px) {
+    body { flex-direction: row; overflow: hidden; height: 100dvh; }
+
+    .app-shell { flex-direction: row; height: 100dvh; overflow: hidden; }
+
+    .sidebar {
+      width: 380px;
+      max-width: 380px;
+      border-left: 1px solid var(--border);
+      background: var(--surface);
+      overflow-y: auto;
+      height: 100dvh;
+      flex-shrink: 0;
+    }
+
+    .content-pane {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      overflow-y: auto;
+      height: 100dvh;
+      background: var(--bg);
+    }
+
+    /* On desktop, context panel always visible – no toggling */
+    .context-panel { display: block !important; border-radius: 0; border: none; border-top: 1px solid var(--border); }
+    /* On desktop, next-btn always show if profile loaded */
+    .desktop-main { flex: 1; }
+  }
+
+  /* Scanline overlay */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,136,0.015) 2px, rgba(0,255,136,0.015) 4px);
+    pointer-events: none;
+    z-index: 100;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--surface);
+  }
+
+  .header-icon {
+    font-size: 1.6rem;
+    filter: drop-shadow(0 0 8px var(--green));
+  }
+
+  .header h1 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--green);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .header .sub {
+    font-size: 0.7rem;
+    color: var(--dim);
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 1px;
+  }
+
+  /* ── SETUP PANEL ── */
+  .setup {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .setup-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .setup-label {
+    font-size: 0.72rem;
+    color: var(--dim);
+    font-family: 'IBM Plex Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    min-width: 70px;
+    flex-shrink: 0;
+  }
+
+  .seg-btn-group {
+    display: flex;
+    gap: 4px;
+    flex: 1;
+  }
+
+  .seg-btn {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 7px 4px;
+    font-family: 'Heebo', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--dim);
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+  }
+
+  .seg-btn.active {
+    background: rgba(0,255,136,0.1);
+    border-color: var(--green);
+    color: var(--green);
+  }
+
+  .input-wrap {
+    flex: 1;
+    position: relative;
+  }
+
+  .name-input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: var(--text);
+    font-family: 'Heebo', sans-serif;
+    font-size: 0.9rem;
+    transition: border-color 0.2s;
+  }
+
+  .name-input:focus { outline: none; border-color: var(--green); }
+  .name-input::placeholder { color: var(--dim); }
+
+  .ac-drop {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0; left: 0;
+    background: #13131f;
+    border: 1px solid var(--green);
+    border-radius: 8px;
+    z-index: 50;
+    overflow: hidden;
+    max-height: 160px;
+    overflow-y: auto;
+    display: none;
+  }
+
+  .ac-drop.show { display: block; }
+
+  .ac-item {
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.1s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text);
+  }
+
+  .ac-item:last-child { border-bottom: none; }
+  .ac-item:hover, .ac-item.hl { background: rgba(0,255,136,0.08); color: var(--green); }
+
+  .load-btn {
+    background: linear-gradient(135deg, #00cc66, #00ff88);
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    padding: 9px 18px;
+    font-family: 'Heebo', sans-serif;
+    font-weight: 900;
+    font-size: 0.85rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+    letter-spacing: 0.5px;
+  }
+
+  .load-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,255,136,0.3); }
+  .load-btn:active { transform: translateY(0); }
+
+  /* ── MAIN CONTENT ── */
+  .main {
+    flex: 1;
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  /* Status bar */
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--dim);
+    padding: 8px 12px;
+    background: var(--surface);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .status-dot.green { background: var(--green); box-shadow: 0 0 6px var(--green); animation: blink 1.5s infinite; }
+  .status-dot.yellow { background: var(--yellow); }
+  .status-dot.gray { background: var(--dim); }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* ── THE RECOMMENDATION ── */
+  .rec-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+
+  .rec-header {
+    padding: 10px 16px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .rec-body {
+    padding: 20px 16px;
+    text-align: center;
+  }
+
+  .rec-label {
+    font-size: 0.72rem;
+    color: var(--dim);
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .rec-choice {
+    font-size: 4rem;
+    line-height: 1;
+    margin-bottom: 8px;
+    filter: drop-shadow(0 0 20px currentColor);
+    transition: all 0.3s;
+  }
+
+  .rec-name {
+    font-size: 1.6rem;
+    font-weight: 900;
+    letter-spacing: -0.5px;
+    margin-bottom: 4px;
+  }
+
+  .rec-name.rock { color: var(--rock-c); }
+  .rec-name.paper { color: var(--paper-c); }
+  .rec-name.scissors { color: var(--scissors-c); }
+
+  .rec-reason {
+    font-size: 0.78rem;
+    color: var(--dim);
+    font-family: 'IBM Plex Mono', monospace;
+    line-height: 1.5;
+    margin-top: 6px;
+  }
+
+  .rec-confidence {
+    margin-top: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .conf-label {
+    font-size: 0.65rem;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--dim);
+    white-space: nowrap;
+  }
+
+  .conf-bar {
+    flex: 1;
+    height: 6px;
+    background: var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .conf-fill {
+    height: 100%;
+    border-radius: 6px;
+    background: linear-gradient(90deg, var(--green), var(--yellow));
+    transition: width 0.5s ease;
+  }
+
+  .conf-pct {
+    font-size: 0.72rem;
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 700;
+    color: var(--green);
+    min-width: 34px;
+    text-align: left;
+  }
+
+  /* ── LOCATION HINT (for in-app) ── */
+  .location-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    display: none;
+  }
+
+  .location-card.show { display: block; }
+
+  .location-header {
+    padding: 10px 16px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .location-badge {
+    font-size: 0.62rem;
+    padding: 2px 8px;
+    border-radius: 20px;
+    background: rgba(255,215,0,0.1);
+    color: var(--yellow);
+    border: 1px solid rgba(255,215,0,0.3);
+  }
+
+  .location-grid {
+    padding: 14px 16px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    direction: ltr;
+  }
+
+  .loc-slot {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 6px;
+    text-align: center;
+    position: relative;
+  }
+
+  .loc-slot.highlighted {
+    border-color: var(--yellow);
+    background: rgba(255,215,0,0.06);
+  }
+
+  .loc-slot .pos-label {
+    font-size: 0.6rem;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+
+  .loc-slot .pos-emoji { font-size: 1.4rem; }
+
+  .loc-slot .pos-name {
+    font-size: 0.7rem;
+    font-weight: 700;
+    margin-top: 3px;
+  }
+
+  .loc-slot.highlighted .pos-name { color: var(--yellow); }
+
+  .loc-slot .pos-pct {
+    font-size: 0.62rem;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--dim);
+    margin-top: 2px;
+  }
+
+  .loc-slot.highlighted .pos-pct { color: var(--yellow); }
+
+  /* ── STATS BREAKDOWN ── */
+  .stats-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+
+  .stats-header {
+    padding: 10px 16px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .stats-count {
+    font-size: 0.65rem;
+    color: var(--green);
+  }
+
+  .stat-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .stat-row:last-child { border-bottom: none; }
+
+  .stat-emoji { font-size: 1.1rem; width: 24px; text-align: center; }
+  .stat-label { font-size: 0.8rem; font-weight: 700; width: 72px; flex-shrink: 0; }
+  .stat-label.rock { color: var(--rock-c); }
+  .stat-label.paper { color: var(--paper-c); }
+  .stat-label.scissors { color: var(--scissors-c); }
+
+  .stat-bar-wrap { flex: 1; height: 8px; background: var(--border); border-radius: 8px; overflow: hidden; }
+  .stat-bar { height: 100%; border-radius: 8px; transition: width 0.6s ease; }
+  .stat-bar.rock { background: var(--rock-c); }
+  .stat-bar.paper { background: var(--paper-c); }
+  .stat-bar.scissors { background: var(--scissors-c); }
+
+  .stat-pct {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    font-weight: 700;
+    width: 36px;
+    text-align: left;
+    flex-shrink: 0;
+  }
+
+  .stat-pct.rock { color: var(--rock-c); }
+  .stat-pct.paper { color: var(--paper-c); }
+  .stat-pct.scissors { color: var(--scissors-c); }
+
+  /* ── NEXT BUTTON ── */
+  .next-btn {
+    width: 100%;
+    background: rgba(0,255,136,0.08);
+    border: 1px solid rgba(0,255,136,0.3);
+    border-radius: 12px;
+    padding: 16px;
+    font-family: 'Heebo', sans-serif;
+    font-weight: 900;
+    font-size: 1rem;
+    color: var(--green);
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+    letter-spacing: 0.5px;
+    display: none;
+  }
+
+  .next-btn.show { display: block; }
+  .next-btn:hover { background: rgba(0,255,136,0.14); transform: translateY(-1px); }
+  .next-btn:active { transform: translateY(0); }
+
+  /* ── EMPTY / LOADING ── */
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--dim);
+  }
+
+  .empty-state .icon { font-size: 3rem; margin-bottom: 12px; opacity: 0.5; }
+  .empty-state p { font-size: 0.85rem; line-height: 1.6; }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--surface);
+    border: 1px solid var(--green);
+    color: var(--green);
+    padding: 8px 20px;
+    border-radius: 50px;
+    font-size: 0.8rem;
+    font-family: 'IBM Plex Mono', monospace;
+    z-index: 200;
+    transition: transform 0.3s;
+    white-space: nowrap;
+  }
+
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* ── CONTEXT PANEL ── */
+  .context-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    display: none;
+  }
+  .context-panel.show { display: block; }
+
+  .ctx-header {
+    padding: 10px 16px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .ctx-hint { font-size: 0.6rem; color: var(--dim); opacity: 0.6; }
+
+  .ctx-body { padding: 12px 16px; display: flex; flex-direction: column; gap: 12px; }
+
+  .ctx-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .ctx-row-label {
+    font-size: 0.7rem;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    width: 56px;
+    flex-shrink: 0;
+  }
+
+  /* Position drag row */
+  .pos-drag-row {
+    display: flex;
+    gap: 6px;
+    flex: 1;
+    align-items: center;
+  }
+
+  .pos-slot {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 4px 4px;
+    text-align: center;
+    cursor: pointer;
+    position: relative;
+    transition: border-color 0.15s;
+    min-height: 62px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    user-select: none;
+  }
+
+  .pos-slot.drag-over { border-color: var(--green); background: rgba(0,255,136,0.06); }
+  .pos-slot.has-choice { border-color: var(--dim); }
+
+  .pos-slot .slot-pos-name {
+    font-size: 0.55rem;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 3px;
+  }
+
+  .pos-slot .slot-emoji { font-size: 1.3rem; line-height: 1; }
+  .pos-slot .slot-name { font-size: 0.65rem; font-weight: 700; margin-top: 2px; }
+  .pos-slot .slot-name.rock { color: var(--rock-c); }
+  .pos-slot .slot-name.paper { color: var(--paper-c); }
+  .pos-slot .slot-name.scissors { color: var(--scissors-c); }
+
+  .pos-choice-pill {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+  }
+
+  .pos-slot-empty { opacity: 0.35; }
+
+  /* Color swatches */
+  .color-swatches {
+    display: flex;
+    gap: 6px;
+    flex: 1;
+  }
+
+  .color-swatch-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .color-swatch {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    cursor: pointer;
+    transition: transform 0.15s, border-color 0.15s;
+    position: relative;
+  }
+  .color-swatch:hover { transform: scale(1.1); }
+  .color-swatch input[type=color] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+    border-radius: 50%;
+  }
+
+  .swatch-label {
+    font-size: 0.62rem;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--dim);
+    text-align: center;
+  }
+
+  .ctx-apply-btn {
+    width: 100%;
+    background: rgba(0,255,136,0.07);
+    border: 1px solid rgba(0,255,136,0.25);
+    border-radius: 8px;
+    padding: 9px;
+    font-family: 'Heebo', sans-serif;
+    font-weight: 700;
+    font-size: 0.82rem;
+    color: var(--green);
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-top: 2px;
+  }
+  .ctx-apply-btn:hover { background: rgba(0,255,136,0.13); }
+  .ctx-apply-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  /* Influence badges */
+  .influence-row {
+    display: flex;
+    gap: 6px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    background: rgba(0,0,0,0.2);
+  }
+  .inf-badge {
+    flex: 1;
+    text-align: center;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .inf-badge .inf-val { font-size: 0.85rem; font-weight: 700; color: var(--green); }
+  .inf-badge .inf-lbl { font-size: 0.58rem; color: var(--dim); text-transform: uppercase; letter-spacing: 0.8px; margin-top: 2px; }
+
+  /* ── ROUND RESULT PANEL ── */
+  .round-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 0;
+  }
+
+  .round-header {
+    padding: 10px 16px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .round-body {
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .round-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .round-label {
+    font-size: 0.7rem;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    width: 60px;
+    flex-shrink: 0;
+  }
+
+  .outcome-btns {
+    display: flex;
+    gap: 6px;
+    flex: 1;
+  }
+
+  .outcome-btn {
+    flex: 1;
+    padding: 7px 4px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    font-family: 'Heebo', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--dim);
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+  }
+
+  .outcome-btn.win.active  { background: rgba(0,255,136,0.12); border-color: var(--green); color: var(--green); }
+  .outcome-btn.loss.active { background: rgba(255,51,85,0.12);  border-color: var(--red);   color: var(--red);   }
+  .outcome-btn.tie.active  { background: rgba(255,215,0,0.12);  border-color: var(--yellow); color: var(--yellow); }
+
+  .opponent-choice-row {
+    display: flex;
+    gap: 6px;
+    flex: 1;
+  }
+
+  .opp-btn {
+    flex: 1;
+    padding: 6px 4px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    font-size: 0.95rem;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .opp-btn span { font-size: 0.62rem; font-weight: 700; font-family: 'IBM Plex Mono', monospace; }
+  .opp-btn.rock.active    { border-color: var(--rock-c);     background: rgba(255,107,107,0.1); }
+  .opp-btn.paper.active   { border-color: var(--paper-c);    background: rgba(77,166,255,0.1);  }
+  .opp-btn.scissors.active{ border-color: var(--scissors-c); background: rgba(0,255,136,0.1);   }
+
+  .round-apply-btn {
+    width: 100%;
+    background: rgba(255,215,0,0.07);
+    border: 1px solid rgba(255,215,0,0.3);
+    border-radius: 8px;
+    padding: 9px;
+    font-family: 'Heebo', sans-serif;
+    font-weight: 700;
+    font-size: 0.82rem;
+    color: var(--yellow);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .round-apply-btn:hover { background: rgba(255,215,0,0.13); }
+  .round-apply-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  /* Memory decay badge */
+  .decay-badge {
+    font-size: 0.6rem;
+    padding: 2px 7px;
+    border-radius: 20px;
+    background: rgba(255,215,0,0.08);
+    color: var(--yellow);
+    border: 1px solid rgba(255,215,0,0.2);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  /* ── WIN PERCENTAGE CARD ── */
+  .winpct-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+
+  .winpct-header {
+    padding: 10px 16px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .winpct-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 16px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+  .winpct-row:last-child { border-bottom: none; }
+
+  .winpct-bg {
+    position: absolute;
+    inset: 0;
+    opacity: 0.07;
+    border-radius: 0;
+    transition: width 0.6s ease;
+  }
+  .winpct-bg.rock     { background: var(--rock-c); }
+  .winpct-bg.paper    { background: var(--paper-c); }
+  .winpct-bg.scissors { background: var(--scissors-c); }
+
+  .winpct-emoji { font-size: 1.1rem; width: 24px; text-align: center; position: relative; z-index: 1; }
+  .winpct-label { font-size: 0.8rem; font-weight: 700; width: 90px; flex-shrink: 0; position: relative; z-index: 1; }
+  .winpct-label.rock     { color: var(--rock-c); }
+  .winpct-label.paper    { color: var(--paper-c); }
+  .winpct-label.scissors { color: var(--scissors-c); }
+
+  .winpct-bar-wrap { flex: 1; height: 8px; background: var(--border); border-radius: 8px; overflow: hidden; position: relative; z-index: 1; }
+  .winpct-bar { height: 100%; border-radius: 8px; transition: width 0.6s ease; }
+  .winpct-bar.rock     { background: var(--rock-c); }
+  .winpct-bar.paper    { background: var(--paper-c); }
+  .winpct-bar.scissors { background: var(--scissors-c); }
+
+  .winpct-num {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.78rem;
+    font-weight: 700;
+    width: 38px;
+    text-align: left;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+  }
+  .winpct-num.rock     { color: var(--rock-c); }
+  .winpct-num.paper    { color: var(--paper-c); }
+  .winpct-num.scissors { color: var(--scissors-c); }
+
+  .winpct-best-badge {
+    font-size: 0.58rem;
+    padding: 2px 7px;
+    border-radius: 20px;
+    background: rgba(0,255,136,0.1);
+    color: var(--green);
+    border: 1px solid rgba(0,255,136,0.3);
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 0.5px;
+    position: relative;
+    z-index: 1;
+    flex-shrink: 0;
+  }
+
+
+  .preset-color-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .preset-choice-label {
+    font-size: 0.65rem;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--dim);
+    width: 52px;
+    flex-shrink: 0;
+  }
+  .preset-swatches {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+  }
+  .preset-dot {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: transform 0.12s, border-color 0.12s;
+    flex-shrink: 0;
+  }
+  .preset-dot:hover { transform: scale(1.15); }
+  .preset-dot.selected { border-color: #fff; transform: scale(1.18); }
+
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+
+<!-- ═══════════ SIDEBAR ═══════════ -->
+<div class="sidebar">
+
+<div class="header">
+  <div class="header-icon">🃏</div>
+  <div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:1rem;font-weight:700;color:var(--green);letter-spacing:2px;">רמאות RPS</div>
+  </div>
+  <a href=".." style="margin-right:auto;background:rgba(0,255,136,0.07);border:1px solid rgba(0,255,136,0.2);color:var(--green);font-family:'IBM Plex Mono',monospace;font-size:0.68rem;padding:5px 12px;border-radius:20px;text-decoration:none;transition:all 0.15s" onmouseover="this.style.background='rgba(0,255,136,0.14)'" onmouseout="this.style.background='rgba(0,255,136,0.07)'">📊 סטטיסטיקות</a>
+</div>
+
+<!-- Setup -->
+<div class="setup">
+  <div class="setup-row">
+    <div class="setup-label">מצב</div>
+    <div class="seg-btn-group">
+      <button class="seg-btn active" id="mode-app" onclick="setMode('app')">📱 אפליקציה</button>
+      <button class="seg-btn" id="mode-physical" onclick="setMode('physical')">🤝 פיזי</button>
+    </div>
+  </div>
+  <div class="setup-row">
+    <div class="setup-label">שמי</div>
+    <div class="input-wrap" id="my-name-wrap" style="flex:1">
+      <input type="text" class="name-input" id="my-name" placeholder="השם שלי" autocomplete="off" oninput="onMyNameInput()" onkeydown="onMyNameKeydown(event)">
+      <div class="ac-drop" id="my-ac-drop"></div>
+    </div>
+  </div>
+  <div class="setup-row">
+    <div class="setup-label">יריב</div>
+    <div class="input-wrap" id="name-wrap" style="flex:1">
+      <input type="text" class="name-input" id="player-name" placeholder="שם היריב" autocomplete="off" oninput="onNameInput()" onkeydown="onNameKeydown(event)">
+      <div class="ac-drop" id="ac-drop"></div>
+    </div>
+  </div>
+  <button class="load-btn" style="width:100%;padding:10px;font-size:0.9rem;" onclick="smartUpdate()">עדכן ▶</button>
+</div>
+
+<!-- Context Panel: position + color + round result -->
+<div class="context-panel" id="context-panel">
+  <div class="ctx-header" id="ctx-header">
+    <span>הסיבוב הנוכחי</span>
+    <span class="ctx-hint">גרור · לחץ · בחר</span>
+  </div>
+  <div class="ctx-body" id="ctx-body">
+
+    <!-- Position row -->
+    <div class="ctx-row" id="ctx-row-pos">
+      <div class="ctx-row-label">סדר</div>
+      <div class="pos-drag-row" id="pos-drag-row">
+        <div class="pos-slot" id="slot-left"   data-pos="left"   ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="drop(event,'left')"   onclick="slotClick('left')">
+          <div class="slot-pos-name">שמאל</div>
+          <div class="pos-slot-empty pos-choice-pill"><div class="slot-emoji">❓</div></div>
+        </div>
+        <div class="pos-slot" id="slot-center" data-pos="center" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="drop(event,'center')" onclick="slotClick('center')">
+          <div class="slot-pos-name">אמצע</div>
+          <div class="pos-slot-empty pos-choice-pill"><div class="slot-emoji">❓</div></div>
+        </div>
+        <div class="pos-slot" id="slot-right"  data-pos="right"  ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="drop(event,'right')"  onclick="slotClick('right')">
+          <div class="slot-pos-name">ימין</div>
+          <div class="pos-slot-empty pos-choice-pill"><div class="slot-emoji">❓</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Color row — preset palette per choice -->
+    <div class="ctx-row" id="ctx-row-color">
+      <div class="ctx-row-label">צבעים</div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:6px;" id="color-rows"></div>
+    </div>
+
+    <!-- ── תיעוד סיבוב ── -->
+    <div id="record-panel" style="display:none;margin-top:4px;border-top:1px solid var(--border);padding-top:10px;">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:0.62rem;color:var(--dim);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;">תיעוד סיבוב</div>
+
+      <div class="round-row" style="margin-bottom:6px;">
+        <div class="round-label">שיחקתי</div>
+        <div class="opponent-choice-row">
+          <button class="opp-btn rock"     id="my-rock"     onclick="setMyChoice('rock')">✊<span>אבן</span></button>
+          <button class="opp-btn paper"    id="my-paper"    onclick="setMyChoice('paper')">📄<span>נייר</span></button>
+          <button class="opp-btn scissors" id="my-scissors" onclick="setMyChoice('scissors')">✂️<span>מספריים</span></button>
+        </div>
+      </div>
+
+      <div class="round-row" style="margin-bottom:8px;">
+        <div class="round-label">היריב</div>
+        <div class="opponent-choice-row">
+          <button class="opp-btn rock"     id="opp-rock"     onclick="setOppActual('rock')">✊<span>אבן</span></button>
+          <button class="opp-btn paper"    id="opp-paper"    onclick="setOppActual('paper')">📄<span>נייר</span></button>
+          <button class="opp-btn scissors" id="opp-scissors" onclick="setOppActual('scissors')">✂️<span>מספריים</span></button>
+        </div>
+      </div>
+
+      <button id="save-round-btn" class="round-apply-btn" onclick="saveRoundAndNext()" disabled>💾 שמור וסיבוב הבא</button>
+    </div>
+  </div><!-- /ctx-body -->
+
+  <!-- Influence display -->
+  <div class="influence-row" id="influence-row">
+    <div class="inf-badge">
+      <div class="inf-val" id="inf-pos-val">—</div>
+      <div class="inf-lbl">מיקום</div>
+    </div>
+    <div class="inf-badge">
+      <div class="inf-val" id="inf-col-val">—</div>
+      <div class="inf-lbl">צבע</div>
+    </div>
+    <div class="inf-badge">
+      <div class="inf-val" id="inf-ws-val">—</div>
+      <div class="inf-lbl">win-stay</div>
+    </div>
+    <div class="inf-badge">
+      <div class="inf-val" id="inf-ls-val">—</div>
+      <div class="inf-lbl">lose-shift</div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /sidebar -->
+
+<!-- ═══════════ CONTENT PANE (desktop only) ═══════════ -->
+<div class="content-pane" id="content-pane">
+  <!-- mirrored main content rendered here on desktop by JS -->
+</div>
+
+</div><!-- /app-shell -->
+
+<!-- ═══════════ MAIN (mobile) ═══════════ -->
+<div class="main" id="main-mobile">
+
+  <div class="empty-state" id="empty-state">
+    <div class="icon">🎯</div>
+    <p>בחר יריב ולחץ <strong style="color:var(--green)">עדכן</strong><br>לקבל המלצה מבוססת נתונים</p>
+  </div>
+
+  <div class="status-bar hidden" id="status-bar">
+    <div class="status-dot gray" id="status-dot"></div>
+    <span id="status-text">טוען...</span>
+  </div>
+
+  <div class="rec-card hidden" id="rec-card">
+    <div class="rec-header">המלצה — בחר את זה</div>
+    <div class="rec-body">
+      <div class="rec-label">אתה צריך לשחק</div>
+      <div class="rec-choice" id="rec-emoji">✊</div>
+      <div class="rec-name" id="rec-name">אבן</div>
+      <div class="rec-reason" id="rec-reason">—</div>
+      <div class="rec-confidence">
+        <div class="conf-label">ביטחון</div>
+        <div class="conf-bar"><div class="conf-fill" id="conf-fill" style="width:0%"></div></div>
+        <div class="conf-pct" id="conf-pct">—</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="location-card" id="location-card">
+    <div class="location-header">
+      <span>מיקום כפתורים</span>
+      <span class="location-badge">IN-APP</span>
+    </div>
+    <div class="location-grid" id="location-grid"></div>
+  </div>
+
+  <div class="stats-card hidden" id="stats-card">
+    <div class="stats-header">
+      <span>התפלגות בחירות</span>
+      <span class="stats-count" id="stats-count">0 משחקים</span>
+    </div>
+    <div class="stat-row">
+      <div class="stat-emoji">✊</div>
+      <div class="stat-label rock">אבן</div>
+      <div class="stat-bar-wrap"><div class="stat-bar rock" id="bar-rock" style="width:0%"></div></div>
+      <div class="stat-pct rock" id="pct-rock">0%</div>
+    </div>
+    <div class="stat-row">
+      <div class="stat-emoji">📄</div>
+      <div class="stat-label paper">נייר</div>
+      <div class="stat-bar-wrap"><div class="stat-bar paper" id="bar-paper" style="width:0%"></div></div>
+      <div class="stat-pct paper" id="pct-paper">0%</div>
+    </div>
+    <div class="stat-row">
+      <div class="stat-emoji">✂️</div>
+      <div class="stat-label scissors">מספריים</div>
+      <div class="stat-bar-wrap"><div class="stat-bar scissors" id="bar-scissors" style="width:0%"></div></div>
+      <div class="stat-pct scissors" id="pct-scissors">0%</div>
+    </div>
+  </div>
+
+  <div class="winpct-card hidden" id="winpct-card">
+    <div class="winpct-header">סיכויי ניצחון שלך לכל בחירה</div>
+    <div class="winpct-row" id="winpct-row-rock">
+      <div class="winpct-bg rock" id="winpct-bg-rock"></div>
+      <div class="winpct-emoji">✊</div>
+      <div class="winpct-label rock">אבן</div>
+      <div class="winpct-bar-wrap"><div class="winpct-bar rock" id="winpct-bar-rock" style="width:0%"></div></div>
+      <div class="winpct-num rock" id="winpct-num-rock">0%</div>
+      <div class="winpct-best-badge" id="winpct-best-rock" style="display:none">✓ מומלץ</div>
+    </div>
+    <div class="winpct-row" id="winpct-row-paper">
+      <div class="winpct-bg paper" id="winpct-bg-paper"></div>
+      <div class="winpct-emoji">📄</div>
+      <div class="winpct-label paper">נייר</div>
+      <div class="winpct-bar-wrap"><div class="winpct-bar paper" id="winpct-bar-paper" style="width:0%"></div></div>
+      <div class="winpct-num paper" id="winpct-num-paper">0%</div>
+      <div class="winpct-best-badge" id="winpct-best-paper" style="display:none">✓ מומלץ</div>
+    </div>
+    <div class="winpct-row" id="winpct-row-scissors">
+      <div class="winpct-bg scissors" id="winpct-bg-scissors"></div>
+      <div class="winpct-emoji">✂️</div>
+      <div class="winpct-label scissors">מספריים</div>
+      <div class="winpct-bar-wrap"><div class="winpct-bar scissors" id="winpct-bar-scissors" style="width:0%"></div></div>
+      <div class="winpct-num scissors" id="winpct-num-scissors">0%</div>
+      <div class="winpct-best-badge" id="winpct-best-scissors" style="display:none">✓ מומלץ</div>
+    </div>
+  </div>
+
+
+
+</div><!-- /main-mobile -->
+
+<div class="toast" id="toast"></div>
+
+<script src="../../rps-engine.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
+import { getDatabase, ref, get, push, update, onValue } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyA-IW5ESE-eBuyMBfreGmyPdQV7YmkfmGs",
+  authDomain: "rock-paper-scissors-stats.firebaseapp.com",
+  databaseURL: "https://rock-paper-scissors-stats-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "rock-paper-scissors-stats",
+  storageBucket: "rock-paper-scissors-stats.firebasestorage.app",
+  messagingSenderId: "358139389618",
+  appId: "1:358139389618:web:c27497f5d7a5b23beb4bab",
+  measurementId: "G-PHDLVC4S49"
+};
+
+const app = initializeApp(firebaseConfig);
+const db  = getDatabase(app);
+
+// ── PRESET COLOR PALETTE (matches the app's available colors) ──
+const COLOR_PALETTE = [
+  '#ff4444', '#ff7733', '#ffcc00', '#aadd00',
+  '#00cc66', '#00ddbb', '#4499ff', '#aa55ff',
+  '#ff55aa', '#ffffff', '#aaaaaa', '#333355'
+];
+
+// Default one color per choice
+const COLOR_DEFAULTS = { rock: '#ff4444', paper: '#4499ff', scissors: '#00cc66' };
+
+// ── RESPONSIVE: mirror main content into desktop content-pane ──
+function syncDesktopPane() {
+  const isDesktop = window.innerWidth >= 860;
+  const mainMobile  = el('main-mobile');
+  const contentPane = el('content-pane');
+  if (isDesktop) {
+    // Move main content into right pane
+    if (mainMobile.parentNode !== contentPane) {
+      contentPane.appendChild(mainMobile);
+      mainMobile.style.display = 'flex';
+      mainMobile.style.flexDirection = 'column';
+      mainMobile.style.flex = '1';
+    }
+    // Context panel always visible on desktop
+    el('context-panel').style.display = 'block';
+  } else {
+    // Move back under body
+    if (mainMobile.parentNode !== document.body) {
+      document.body.appendChild(mainMobile);
+    }
+    mainMobile.style.display = '';
+    mainMobile.style.flex = '';
+    // Context panel controlled by .show class on mobile
+    if (!el('context-panel').classList.contains('show')) {
+      el('context-panel').style.display = '';
+    }
+  }
+}
+syncDesktopPane();
+window.addEventListener('resize', syncDesktopPane);
+
+// Initialize color rows on load
+document.addEventListener('DOMContentLoaded', () => renderColorRows());
+let currentMode = 'app';
+let allPlayers  = [];
+let currentProfile = null;
+let currentRecommendation = null;
+let acHighlight = -1;
+
+// Position context
+let ctxPositions = { left: null, center: null, right: null };
+let ctxColors    = { ...COLOR_DEFAULTS };
+let draggingChoice = null;
+
+// Round result state
+let roundOutcome   = null; // 'win' | 'loss' | 'tie'
+let roundOppChoice = null; // 'rock' | 'paper' | 'scissors'
+let lastRoundTimestamp = null; // ms timestamp of last round
+
+// Record state
+let myActualChoice  = null; // what I played
+let oppActualChoice = null; // what opponent played
+
+// Session history — sequence of opponent moves this session (for streak/transition)
+// Each entry: { oppChoice, outcome (from user's POV), timestamp }
+let sessionHistory = [];
+
+// ── מנוע החישוב המשותף (נטען כ-script רגיל, נגיש דרך window) ──
+const RPSEngine = window.RPSEngine;
+// ── CONSTANTS (from shared engine) ──
+const { EMOJI, HEB, BEATS, BEATEN_BY } = RPSEngine;
+
+// ── UTILS ──
+function showToast(msg, dur=2500) {
+  const t = el('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), dur);
+}
+function hidden(id) { document.getElementById(id).classList.add('hidden'); }
+function show(id)   { document.getElementById(id).classList.remove('hidden'); }
+function el(id)     { return document.getElementById(id); }
+
+// ── MODE ──
+window.setMode = function(mode) {
+  currentMode = mode;
+  ['app','physical'].forEach(m => el('mode-' + m).classList.toggle('active', m === mode));
+
+  const isPhysical = mode === 'physical';
+  // Hide pos/color rows in physical mode
+  el('ctx-row-pos').style.display   = isPhysical ? 'none' : '';
+  el('ctx-row-color').style.display = isPhysical ? 'none' : '';
+  // Hide influence row in physical mode
+  el('influence-row').style.display = isPhysical ? 'none' : '';
+  // Hide "הסיבוב הנוכחי / גרור · לחץ · בחר" header in physical mode
+  el('ctx-header').style.display    = isPhysical ? 'none' : '';
+  // Remove ctx-body padding in physical mode (record-panel handles its own spacing)
+  el('ctx-body').style.padding      = isPhysical ? '0' : '';
+  el('ctx-body').style.gap          = isPhysical ? '0' : '';
+  // record-panel: in physical mode remove the separator border and add outer padding
+  const rp = el('record-panel');
+  if (rp) {
+    rp.style.borderTop    = isPhysical ? 'none' : '';
+    rp.style.paddingTop   = isPhysical ? '0' : '';
+    rp.style.marginTop    = isPhysical ? '0' : '';
+    rp.style.padding      = isPhysical ? '12px 16px' : '';
+  }
+
+  if (window.innerWidth < 860) {
+    const panel = el('context-panel');
+    // In physical mode, context panel only shows record panel — always open if profile loaded
+    if (currentRecommendation) panel.classList.add('show');
+    else panel.classList.remove('show');
+  }
+
+  // Recompute weights with new mode if profile already loaded
+  if (currentProfile) loadProfile();
+};
+
+// ── AUTOCOMPLETE ──
+onValue(ref(db, 'players'), snap => {
+  if (snap.exists()) {
+    allPlayers = Object.values(snap.val()).map(p => p.name).filter(Boolean).sort((a,b) => a.localeCompare(b,'he'));
+  }
+});
+
+window.onNameInput = function() {
+  const val  = el('player-name').value.trim().toLowerCase();
+  const drop = el('ac-drop');
+  acHighlight = -1;
+  if (!val) { drop.classList.remove('show'); return; }
+  const matches = allPlayers.filter(p => p.toLowerCase().includes(val)).slice(0, 7);
+  if (!matches.length) { drop.classList.remove('show'); return; }
+  drop.innerHTML = matches.map((p, i) => {
+    const idx = p.toLowerCase().indexOf(val);
+    const disp = p.slice(0,idx) + '<strong style="color:var(--green)">' + p.slice(idx, idx+val.length) + '</strong>' + p.slice(idx+val.length);
+    return `<div class="ac-item" data-name="${p}" data-i="${i}" onmousedown="acPick('${p.replace(/'/g,"\\'")}')">👤 ${disp}</div>`;
+  }).join('');
+  drop.classList.add('show');
+};
+window.acPick = function(name) { el('player-name').value = name; el('ac-drop').classList.remove('show'); };
+window.onNameKeydown = function(e) {
+  const drop  = el('ac-drop');
+  const items = drop.querySelectorAll('.ac-item');
+  if (!drop.classList.contains('show') || !items.length) { if (e.key==='Enter') { e.preventDefault(); smartUpdate(); } return; }
+  if (e.key==='ArrowDown') { e.preventDefault(); acHighlight=Math.min(acHighlight+1,items.length-1); items.forEach((x,i)=>x.classList.toggle('hl',i===acHighlight)); }
+  else if (e.key==='ArrowUp') { e.preventDefault(); acHighlight=Math.max(acHighlight-1,0); items.forEach((x,i)=>x.classList.toggle('hl',i===acHighlight)); }
+  else if (e.key==='Enter') { e.preventDefault(); if (acHighlight>=0&&items[acHighlight]) acPick(items[acHighlight].dataset.name); else smartUpdate(); }
+  else if (e.key==='Escape') drop.classList.remove('show');
+};
+
+let myAcHighlight = -1;
+window.onMyNameInput = function() {
+  const val  = el('my-name').value.trim().toLowerCase();
+  const drop = el('my-ac-drop');
+  myAcHighlight = -1;
+  if (!val) { drop.classList.remove('show'); return; }
+  const matches = allPlayers.filter(p => p.toLowerCase().includes(val)).slice(0, 7);
+  if (!matches.length) { drop.classList.remove('show'); return; }
+  drop.innerHTML = matches.map((p, i) => {
+    const idx = p.toLowerCase().indexOf(val);
+    const disp = p.slice(0,idx) + '<strong style="color:var(--green)">' + p.slice(idx, idx+val.length) + '</strong>' + p.slice(idx+val.length);
+    return `<div class="ac-item" data-name="${p}" data-i="${i}" onmousedown="myAcPick('${p.replace(/'/g,"\\'")}')">👤 ${disp}</div>`;
+  }).join('');
+  drop.classList.add('show');
+};
+window.myAcPick = function(name) { el('my-name').value = name; el('my-ac-drop').classList.remove('show'); };
+window.onMyNameKeydown = function(e) {
+  const drop  = el('my-ac-drop');
+  const items = drop.querySelectorAll('.ac-item');
+  if (!drop.classList.contains('show') || !items.length) { if (e.key==='Enter') { e.preventDefault(); smartUpdate(); } return; }
+  if (e.key==='ArrowDown') { e.preventDefault(); myAcHighlight=Math.min(myAcHighlight+1,items.length-1); items.forEach((x,i)=>x.classList.toggle('hl',i===myAcHighlight)); }
+  else if (e.key==='ArrowUp') { e.preventDefault(); myAcHighlight=Math.max(myAcHighlight-1,0); items.forEach((x,i)=>x.classList.toggle('hl',i===myAcHighlight)); }
+  else if (e.key==='Enter') { e.preventDefault(); if (myAcHighlight>=0&&items[myAcHighlight]) myAcPick(items[myAcHighlight].dataset.name); else smartUpdate(); }
+  else if (e.key==='Escape') drop.classList.remove('show');
+};
+document.addEventListener('click', e => {
+  if (!e.target.closest('#name-wrap'))    el('ac-drop').classList.remove('show');
+  if (!e.target.closest('#my-name-wrap')) el('my-ac-drop').classList.remove('show');
+});
+
+// ── SMART UPDATE: single entry point for load + refresh ──
+window.smartUpdate = function() {
+  const name    = el('player-name').value.trim();
+  const myName  = el('my-name').value.trim();
+
+  if (name.toLowerCase() === 'unknown') { showToast('"unknown" אינו שם תקין'); el('player-name').value = ''; el('player-name').focus(); return; }
+  if (myName.toLowerCase() === 'unknown') { showToast('"unknown" אינו שם תקין'); el('my-name').value = ''; el('my-name').focus(); return; }
+
+  // If profile already loaded for this name, just refresh recommendation with current context
+  if (currentProfile && currentProfile.name === name) {
+    const rec = buildRecommendation();
+    currentRecommendation = rec;
+    renderRecommendation(rec);
+    showToast('המלצה עודכנה ✓');
+  } else {
+    loadProfile();
+  }
+};
+
+// ════════════════════════════════════════════════
+// ROUND RESULT UI
+// ════════════════════════════════════════════════
+window.setOutcome = function(outcome) {
+  roundOutcome = outcome;
+  document.querySelectorAll('.outcome-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.outcome-btn.${outcome}`).classList.add('active');
+  // Show opponent choice row for win/loss (not tie — we already know)
+  el('opp-choice-row').style.display = (outcome === 'tie') ? 'none' : 'flex';
+  if (outcome === 'tie') { roundOppChoice = null; }
+  updateRoundApplyBtn();
+};
+
+window.setOppChoice = function(choice) {
+  roundOppChoice = choice;
+  document.querySelectorAll('.opp-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.opp-btn.${choice}`).classList.add('active');
+  updateRoundApplyBtn();
+};
+
+function updateRoundApplyBtn() {
+  const needsOpp = roundOutcome && roundOutcome !== 'tie';
+  const ready = roundOutcome && (!needsOpp || roundOppChoice);
+  el('round-apply-btn').disabled = !ready;
+}
+
+
+window.applyRoundResult = function() {
+  if (!currentProfile || !roundOutcome) return;
+  lastRoundTimestamp = Date.now();
+
+  // Store round info for next recommendation
+  currentProfile.lastRound = {
+    outcome: roundOutcome,
+    oppChoice: roundOppChoice,
+    timestamp: lastRoundTimestamp
+  };
+
+  // Update session history for streak/transition tracking
+  if (roundOppChoice) {
+    sessionHistory.push({ oppChoice: roundOppChoice, outcome: roundOutcome, timestamp: lastRoundTimestamp });
+  }
+
+  const rec = buildRecommendation();
+  currentRecommendation = rec;
+  renderRecommendation(rec);
+  updateDecayBadge();
+  showToast('המלצה עודכנה לפי התוצאה!');
+};
+
+function updateDecayBadge() {
+  if (!lastRoundTimestamp || !currentProfile?.halfLife) return;
+  const elapsed = Date.now() - lastRoundTimestamp;
+  const decay   = RPSEngine.computeDecay(elapsed, currentProfile.halfLife);
+  el('decay-badge').textContent = `זיכרון: ${Math.round(decay * 100)}%`;
+  // Update every 30s while decay is active
+  if (decay > 0.05) setTimeout(updateDecayBadge, 30000);
+}
+
+// ════════════════════════════════════════════════
+// POSITION DRAG-AND-DROP + TOUCH
+// ════════════════════════════════════════════════
+function renderSlots() {
+  ['left','center','right'].forEach(pos => {
+    const choice = ctxPositions[pos];
+    const slot   = el('slot-' + pos);
+    const inner  = slot.querySelector('.pos-choice-pill') || slot.lastElementChild;
+    if (choice) {
+      slot.classList.add('has-choice');
+      inner.className = 'pos-choice-pill';
+      inner.innerHTML = `<div class="slot-emoji">${EMOJI[choice]}</div><div class="slot-name ${choice}">${HEB[choice]}</div>`;
+    } else {
+      slot.classList.remove('has-choice');
+      inner.className = 'pos-slot-empty pos-choice-pill';
+      inner.innerHTML = `<div class="slot-emoji">❓</div>`;
+    }
+  });
+  const applyBtn = el('ctx-apply-btn');
+  if (applyBtn) applyBtn.disabled = !Object.values(ctxPositions).every(v => v !== null);
+}
+
+window.slotClick = function(pos) {
+  if (ctxPositions[pos]) { ctxPositions[pos] = null; renderSlots(); return; }
+  const assigned  = Object.values(ctxPositions).filter(Boolean);
+  const remaining = ['rock','paper','scissors'].filter(c => !assigned.includes(c));
+  if (!remaining.length) return;
+  if (remaining.length === 1) { ctxPositions[pos] = remaining[0]; renderSlots(); renderDraggableChoices(); return; }
+  showChoicePicker(pos, remaining);
+};
+
+function showChoicePicker(pos, choices) {
+  document.getElementById('choice-picker-overlay')?.remove();
+  const posNames = { left: 'שמאל', center: 'אמצע', right: 'ימין' };
+  const overlay  = document.createElement('div');
+  overlay.id = 'choice-picker-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:300;display:flex;align-items:center;justify-content:center;';
+  overlay.innerHTML = `
+    <div style="background:#0d0d14;border:1px solid #1e1e2e;border-radius:16px;padding:20px;min-width:240px;text-align:center;">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:0.7rem;color:#444466;text-transform:uppercase;letter-spacing:2px;margin-bottom:14px;">מה ב${posNames[pos]}?</div>
+      <div style="display:flex;gap:10px;justify-content:center;">
+        ${choices.map(c => `
+          <div onclick="assignChoice('${pos}','${c}')" style="flex:1;background:#050508;border:1px solid #1e1e2e;border-radius:10px;padding:12px 8px;cursor:pointer;" onmouseover="this.style.borderColor='var(--green)'" onmouseout="this.style.borderColor='#1e1e2e'">
+            <div style="font-size:1.8rem;">${EMOJI[c]}</div>
+            <div style="font-size:0.75rem;font-weight:700;color:${c==='rock'?'#ff6b6b':c==='paper'?'#4da6ff':'#00ff88'};margin-top:4px;">${HEB[c]}</div>
+          </div>`).join('')}
+      </div>
+      <div onclick="document.getElementById('choice-picker-overlay').remove()" style="margin-top:14px;font-size:0.75rem;color:#444466;cursor:pointer;">ביטול</div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+window.assignChoice = function(pos, choice) {
+  document.getElementById('choice-picker-overlay')?.remove();
+  ctxPositions[pos] = choice;
+  renderSlots();
+  renderDraggableChoices();
+};
+
+window.dragOver  = e => { e.preventDefault(); e.currentTarget.classList.add('drag-over'); };
+window.dragLeave = e => { e.currentTarget.classList.remove('drag-over'); };
+window.drop      = function(e, pos) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  if (!draggingChoice) return;
+  Object.keys(ctxPositions).forEach(p => { if (ctxPositions[p] === draggingChoice) ctxPositions[p] = null; });
+  ctxPositions[pos] = draggingChoice;
+  draggingChoice = null;
+  renderSlots();
+  renderDraggableChoices();
+};
+
+let touchClone = null, touchDragChoice = null;
+function initTouchDrag(chip, choice) {
+  chip.addEventListener('touchstart', e => {
+    e.preventDefault();
+    touchDragChoice = choice;
+    touchClone = chip.cloneNode(true);
+    const r = chip.getBoundingClientRect();
+    touchClone.style.cssText += `;position:fixed;z-index:9999;pointer-events:none;opacity:0.9;transform:scale(1.1);width:${r.width}px;border-color:var(--green);`;
+    document.body.appendChild(touchClone);
+    const t = e.touches[0];
+    touchClone.style.left = (t.clientX - r.width/2)+'px';
+    touchClone.style.top  = (t.clientY - r.height/2)+'px';
+  }, {passive:false});
+  chip.addEventListener('touchmove', e => {
+    e.preventDefault();
+    if (!touchClone) return;
+    const t = e.touches[0], r = touchClone.getBoundingClientRect();
+    touchClone.style.left = (t.clientX - r.width/2)+'px';
+    touchClone.style.top  = (t.clientY - r.height/2)+'px';
+    document.querySelectorAll('.pos-slot').forEach(s => s.classList.remove('drag-over'));
+    document.elementFromPoint(t.clientX, t.clientY)?.closest('.pos-slot')?.classList.add('drag-over');
+  }, {passive:false});
+  chip.addEventListener('touchend', e => {
+    e.preventDefault();
+    touchClone?.remove(); touchClone = null;
+    document.querySelectorAll('.pos-slot').forEach(s => s.classList.remove('drag-over'));
+    if (!touchDragChoice) return;
+    const t    = e.changedTouches[0];
+    const slot = document.elementFromPoint(t.clientX, t.clientY)?.closest('.pos-slot');
+    if (slot?.dataset.pos) {
+      const pos = slot.dataset.pos;
+      Object.keys(ctxPositions).forEach(p => { if (ctxPositions[p] === touchDragChoice) ctxPositions[p] = null; });
+      ctxPositions[pos] = touchDragChoice;
+      renderSlots();
+      renderDraggableChoices();
+    }
+    touchDragChoice = null;
+  }, {passive:false});
+}
+
+function renderDraggableChoices() {
+  document.getElementById('draggable-choices')?.remove();
+  const assigned  = Object.values(ctxPositions).filter(Boolean);
+  const remaining = ['rock','paper','scissors'].filter(c => !assigned.includes(c));
+  if (!remaining.length) return;
+  const wrap = document.createElement('div');
+  wrap.id = 'draggable-choices';
+  wrap.style.cssText = 'display:flex;gap:6px;justify-content:center;margin-top:6px;';
+  remaining.forEach(c => {
+    const chip = document.createElement('div');
+    chip.draggable = true;
+    chip.style.cssText = `background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:6px 10px;cursor:grab;display:flex;align-items:center;gap:5px;font-size:0.78rem;font-weight:700;touch-action:none;user-select:none;color:${c==='rock'?'#ff6b6b':c==='paper'?'#4da6ff':'#00ff88'};`;
+    chip.innerHTML = `<span style="font-size:1rem;">${EMOJI[c]}</span>${HEB[c]}`;
+    chip.addEventListener('dragstart', () => { draggingChoice = c; });
+    chip.addEventListener('dragend',   () => { draggingChoice = null; });
+    chip.addEventListener('click', () => quickAssign(c));
+    initTouchDrag(chip, c);
+    wrap.appendChild(chip);
+  });
+  el('pos-drag-row').after(wrap);
+}
+
+window.quickAssign = function(choice) {
+  for (const pos of ['left','center','right']) {
+    if (!ctxPositions[pos]) {
+      ctxPositions[pos] = choice;
+      renderSlots();
+      setTimeout(renderDraggableChoices, 0);
+      return;
+    }
+  }
+};
+
+// ── COLOR PRESET ROWS ──
+function renderColorRows() {
+  const container = el('color-rows');
+  if (!container) return;
+  container.innerHTML = '';
+  ['rock','paper','scissors'].forEach(choice => {
+    const row = document.createElement('div');
+    row.className = 'preset-color-row';
+    const lbl = document.createElement('div');
+    lbl.className = 'preset-choice-label';
+    lbl.textContent = EMOJI[choice] + ' ' + HEB[choice];
+    row.appendChild(lbl);
+    const dots = document.createElement('div');
+    dots.className = 'preset-swatches';
+    COLOR_PALETTE.forEach(hex => {
+      const dot = document.createElement('div');
+      dot.className = 'preset-dot' + (ctxColors[choice] === hex ? ' selected' : '');
+      dot.style.background = hex;
+      dot.title = hex;
+      dot.addEventListener('click', () => {
+        ctxColors[choice] = hex;
+        renderColorRows(); // re-render to update selection
+      });
+      dots.appendChild(dot);
+    });
+    row.appendChild(dots);
+    container.appendChild(row);
+  });
+}
+
+window.onColorChange = function(choice, hex) {
+  ctxColors[choice] = hex;
+  renderColorRows();
+};
+
+// ════════════════════════════════════════════════
+// LOAD PROFILE
+// ════════════════════════════════════════════════
+window.loadProfile = async function() {
+  const rawName = el('player-name').value.trim();
+  if (rawName.toLowerCase() === 'unknown') { showToast('"unknown" אינו שם תקין'); el('player-name').value = ''; return; }
+  const name = rawName || null; // null = all players (global stats)
+  if (rawName.toLowerCase() === 'null') { showToast('"null" אינו שם תקין'); el('player-name').value = ''; return; }
+  // Only reset session history when switching to a different opponent
+  const isNewOpponent = !currentProfile || currentProfile.name !== name;
+  if (isNewOpponent) sessionHistory = [];
+  el('ac-drop').classList.remove('show');
+  hidden('empty-state');
+  show('status-bar');
+  hidden('rec-card');
+  hidden('stats-card');
+  if (window.innerWidth < 860) el('context-panel').classList.remove('show');
+  el('next-btn').classList.remove('show');
+  el('status-dot').className = 'status-dot yellow';
+  el('status-text').textContent = name ? `טוען נתונים של ${name}...` : 'טוען נתוני כלל המשתמשים...';
+
+  try {
+    const snap = await get(ref(db, 'games'));
+    if (!snap.exists()) { setStatus('gray', 'אין נתונים עדיין'); el('empty-state').style.display='block'; return; }
+
+    const rawGames = Object.entries(snap.val()).map(([id, g]) => ({ id, ...g }));
+
+    // ── כל החישוב מגיע מהמנוע המשותף ──
+    currentProfile = RPSEngine.buildProfile(rawGames, name, currentMode);
+    roundOutcome   = null;
+    roundOppChoice = null;
+    lastRoundTimestamp = null;
+
+    renderStats(currentProfile.stats, currentProfile.sourceLabel);
+    const rec = buildRecommendation();
+    currentRecommendation = rec;
+    renderRecommendation(rec);
+    renderInfluence(currentProfile.influence, currentProfile.wsls);
+
+    if (currentMode === 'app') {
+      if (window.innerWidth < 860) el('context-panel').classList.add('show');
+      ctxPositions = { left: null, center: null, right: null };
+      renderSlots();
+      renderDraggableChoices();
+      ctxColors = { ...COLOR_DEFAULTS };
+      renderColorRows();
+    } else {
+      // physical mode — show context panel for record only
+      if (window.innerWidth < 860) el('context-panel').classList.add('show');
+    }
+    const rp = el('record-panel');
+    if (rp) rp.style.display = 'block';
+
+    setStatus('green', `${currentProfile.sourceLabel} · מוכן`);
+    show('rec-card');
+    show('stats-card');
+    show('winpct-card');
+    el('next-btn').classList.add('show');
+    watchForCheat(name, rec);
+
+  } catch(err) {
+    setStatus('gray', 'שגיאת חיבור: ' + err.message);
+    console.error(err);
+  }
+};
+
+
+// ════════════════════════════════════════════════
+// BUILD RECOMMENDATION — wrapper around rps-engine.js
+// ════════════════════════════════════════════════
+function buildRecommendation() {
+  if (!currentProfile) return null;
+  return RPSEngine.buildRecommendation(currentProfile, {
+    positions:      ctxPositions,
+    colors:         ctxColors,
+    sessionHistory: sessionHistory,
+  });
+}
+
+// ════════════════════════════════════════════════
+// RECORD ROUND — save game directly from cheat
+// ════════════════════════════════════════════════
+window.setMyChoice = function(choice) {
+  myActualChoice = choice;
+  ['rock','paper','scissors'].forEach(c => el('my-'+c).classList.toggle('active', c===choice));
+  updateSaveBtn();
+};
+
+window.setOppActual = function(choice) {
+  oppActualChoice = choice;
+  ['rock','paper','scissors'].forEach(c => el('opp-'+c).classList.toggle('active', c===choice));
+  updateSaveBtn();
+};
+
+function updateSaveBtn() {
+  el('save-round-btn').disabled = !(myActualChoice && oppActualChoice);
+}
+
+window.saveRoundAndNext = async function() {
+  if (!myActualChoice || !oppActualChoice) return;
+
+  const myName  = el('my-name').value.trim()   || 'unknown';
+  const oppName = el('player-name').value.trim() || 'unknown';
+
+  if (myName.toLowerCase()  === 'unknown') { showToast('"unknown" אינו שם תקין'); return; }
+  if (oppName.toLowerCase() === 'unknown') { showToast('"unknown" אינו שם תקין'); return; }
+
+  // Compute result
+  const result = myActualChoice === oppActualChoice ? 'draw'
+    : BEATS[myActualChoice] === oppActualChoice ? 'p1_win' : 'p2_win';
+
+  // Build game record — p1 = me, p2 = opponent
+  const gameRecord = {
+    mode: currentMode === 'app' ? 'online' : 'local',
+    p1: myName,
+    p2: oppName,
+    p1Choice: myActualChoice,
+    p2Choice: oppActualChoice,
+    p1ChoicePosition: 'unknown',
+    p2ChoicePosition: ctxPositions ? (
+      Object.entries(ctxPositions).find(([,v]) => v === oppActualChoice)?.[0] || 'unknown'
+    ) : 'unknown',
+    result,
+    timestamp: Date.now(),
+    colors: { ...ctxColors }
+  };
+
+  const btn = el('save-round-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ שומר...';
+
+  try {
+    await push(ref(db, 'games'), gameRecord);
+    showToast('✅ נשמר! טוען נתונים מעודכנים...');
+
+    // Update session history BEFORE reload (loadProfile preserves it for same opponent)
+    const sessionOutcome = result === 'p1_win' ? 'win' : result === 'p2_win' ? 'loss' : 'tie';
+    sessionHistory.push({ oppChoice: oppActualChoice, outcome: sessionOutcome, timestamp: gameRecord.timestamp });
+
+    // Also update lastRound so new signals fire right after reload
+    if (currentProfile) {
+      currentProfile.lastRound = { outcome: sessionOutcome, oppChoice: oppActualChoice, timestamp: gameRecord.timestamp };
+    }
+
+    // Reset record UI
+    myActualChoice = null; oppActualChoice = null;
+    ['rock','paper','scissors'].forEach(c => {
+      el('my-'+c).classList.remove('active');
+      el('opp-'+c).classList.remove('active');
+    });
+    btn.textContent = '💾 שמור וסיבוב הבא';
+
+    // Reset positions for next round
+    ctxPositions = { left: null, center: null, right: null };
+    renderSlots();
+    renderDraggableChoices();
+
+    // Reload profile with fresh data
+    await loadProfile();
+
+  } catch(err) {
+    console.error(err);
+    showToast('❌ שגיאה בשמירה: ' + err.message);
+    btn.disabled = false;
+    btn.textContent = '💾 שמור וסיבוב הבא';
+  }
+};
+
+window.applyContext = function() {
+  if (!currentProfile) return;
+  if (!Object.values(ctxPositions).every(Boolean)) { showToast('מלא את כל המיקומים קודם'); return; }
+  const rec = buildRecommendation();
+  currentRecommendation = rec;
+  renderRecommendation(rec);
+  renderInfluence(currentProfile.influence, currentProfile.wsls);
+  showToast('המלצה עודכנה לפי הסיבוב!');
+};
+
+// ── NEXT ROUND ──
+window.nextRound = function() {
+  if (!currentProfile) return;
+  ctxPositions = { left: null, center: null, right: null };
+  ctxColors = { ...COLOR_DEFAULTS };
+  renderSlots();
+  renderDraggableChoices();
+  renderColorRows();
+  roundOutcome = null; roundOppChoice = null;
+  myActualChoice = null; oppActualChoice = null;
+  ['rock','paper','scissors'].forEach(c => {
+    el('my-'+c)?.classList.remove('active');
+    el('opp-'+c)?.classList.remove('active');
+  });
+  el('save-round-btn').disabled = true;
+  const rec = buildRecommendation();
+  currentRecommendation = rec;
+  renderRecommendation(rec);
+  showToast('סיבוב חדש — הכנס מיקומים');
+};
+
+// ── RENDER ──
+function renderRecommendation(rec) {
+  if (!rec) return;
+  const { beat, confidence, reason, adjProb } = rec;
+  el('rec-emoji').textContent  = EMOJI[beat];
+  el('rec-name').textContent   = HEB[beat];
+  el('rec-name').className     = 'rec-name ' + beat;
+  el('rec-reason').textContent = reason;
+  el('conf-fill').style.width  = Math.min(confidence,99)+'%';
+  el('conf-pct').textContent   = confidence+'%';
+  if (adjProb) renderWinPcts(adjProb, beat);
+}
+
+function renderWinPcts(adjProb, beat) {
+  const winPcts = RPSEngine.computeWinPcts(adjProb);
+  const maxPct  = Math.max(winPcts.rock, winPcts.paper, winPcts.scissors) || 1;
+
+  ['rock', 'paper', 'scissors'].forEach(c => {
+    const pct = winPcts[c];
+    const isBest = c === beat;
+    el('winpct-bar-' + c).style.width  = (pct / maxPct * 100) + '%';
+    el('winpct-bg-' + c).style.width   = pct + '%';
+    el('winpct-num-' + c).textContent  = pct + '%';
+    el('winpct-best-' + c).style.display = isBest ? 'inline-block' : 'none';
+  });
+
+  show('winpct-card');
+}
+
+
+  el('stats-count').textContent = `${stats.total} בחירות · ${sourceLabel}`;
+  const maxPct = Math.max(stats.pcts.rock, stats.pcts.paper, stats.pcts.scissors);
+  ['rock','paper','scissors'].forEach(c => {
+    el('bar-'+c).style.width = (maxPct>0?(stats.pcts[c]/maxPct)*100:33)+'%';
+    el('pct-'+c).textContent = Math.round(stats.pcts[c]*100)+'%';
+  });
+}
+
+function renderInfluence(influence, wsls) {
+  if (!influence) return;
+  el('inf-pos-val').textContent = Math.round(influence.posWeight*100)+'%';
+  el('inf-col-val').textContent = Math.round(influence.colorWeight*100)+'%';
+  if (wsls) {
+    el('inf-ws-val').textContent = Math.round(wsls.wsRate*100)+'%';
+    el('inf-ls-val').textContent = Math.round(wsls.lsRate*100)+'%';
+  }
+}
+
+// ── CHEAT DETECTION ──
+function watchForCheat(playerName, rec) {
+  if (!playerName) return;
+  const watchStart = Date.now();
+  const WINDOW_MS  = 30000;
+  const unsub = onValue(ref(db, 'games'), async snap => {
+    if (!snap.exists()) return;
+    const now = Date.now();
+    if (now - watchStart > WINDOW_MS) { unsub(); return; }
+    for (const [id, g] of Object.entries(snap.val())) {
+      if (g.cheated) continue;
+      if (!g.timestamp || now - g.timestamp > WINDOW_MS) continue;
+      if (g.p1 !== playerName && g.p2 !== playerName) continue;
+      const myChoice = g.p1 === playerName ? g.p1Choice : g.p2Choice;
+      if (myChoice === rec.beat) {
+        try { await update(ref(db, 'games/'+id), { cheated: true }); }
+        catch(e) { console.warn('[cheat]', e); }
+      }
+    }
+  });
+  setTimeout(() => { try { unsub(); } catch(e){} }, WINDOW_MS+1000);
+}
+
+function setStatus(color, text) {
+  el('status-dot').className = 'status-dot ' + color;
+  el('status-text').textContent = text;
+}
+
+</script>
+</body>
+</html>
