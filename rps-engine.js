@@ -716,6 +716,43 @@
   }
 
   // ══════════════════════════════════════════════════════════════════════════
+  // WIN PROBABILITY HELPERS
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * מחזיר את אחוז הניצחון של השחקן לכל בחירה אפשרית,
+   * בהתבסס על adjProb של היריב.
+   * winPct[X] = הסיכוי שהיריב יבחר את מה שX מנצח.
+   *
+   * @param {object} adjProb  { rock, paper, scissors }  (סכום = 1)
+   * @returns {{ rock: number, paper: number, scissors: number }}  0-100
+   */
+  function computeWinPcts(adjProb) {
+    return {
+      rock:     Math.round(adjProb.scissors * 100),   // אבן מנצחת מספריים
+      paper:    Math.round(adjProb.rock     * 100),   // נייר מנצח אבן
+      scissors: Math.round(adjProb.paper    * 100),   // מספריים מנצחות נייר
+    };
+  }
+
+  /**
+   * בוחר בחירה אקראית משוקללת לפי adjProb.
+   * שימוש למחשב חכם פרובביליסטי.
+   *
+   * @param {object} adjProb  { rock, paper, scissors }
+   * @returns {string}  'rock' | 'paper' | 'scissors'
+   */
+  function sampleWeighted(adjProb) {
+    const r = Math.random();
+    let cum = 0;
+    for (const c of CHOICES) {
+      cum += adjProb[c] || 0;
+      if (r < cum) return c;
+    }
+    return CHOICES[2]; // fallback
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
   // PUBLIC API
   // ══════════════════════════════════════════════════════════════════════════
 
@@ -748,6 +785,10 @@
     computeOpeningBias,
     computeStreakAvoidance,
     computeMirrorRate,
+
+    // win probability helpers
+    computeWinPcts,
+    sampleWeighted,
 
     // main entry points
     buildProfile,

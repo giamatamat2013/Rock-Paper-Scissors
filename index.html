@@ -1398,6 +1398,9 @@ window.setCpuMode = function(mode) {
 
 // Compute what the CPU should play based on player's historical choices
 // ── CPU CHEAT: uses the same RPSEngine as cheat/index.html ──
+// The CPU plays each choice with probability = player's win% with that choice.
+// i.e. if player's win% with paper is 40% (→ opponent plays rock 40%),
+//      the CPU plays paper 40% of the time.
 async function cheatCpuChoice(playerName) {
   try {
     const snap = await get(ref(db, 'games'));
@@ -1407,7 +1410,18 @@ async function cheatCpuChoice(playerName) {
     const profile     = RPSEngine.buildProfile(allGamesRaw, playerName, 'local');
     const rec         = RPSEngine.buildRecommendation(profile, {});
 
-    return rec ? rec.beat : randomChoice();
+    if (!rec || !rec.adjProb) return randomChoice();
+
+    // Build CPU distribution: CPU plays X with prob = player's win% with X
+    // player's win% with X = adjProb[BEATEN_BY[X]]  (X wins against BEATEN_BY[X])
+    const BEATEN_BY = RPSEngine.BEATEN_BY;
+    const cpuDist = {
+      rock:     rec.adjProb[BEATEN_BY.rock],     // adjProb[scissors]
+      paper:    rec.adjProb[BEATEN_BY.paper],    // adjProb[rock]
+      scissors: rec.adjProb[BEATEN_BY.scissors], // adjProb[paper]
+    };
+
+    return RPSEngine.sampleWeighted(cpuDist);
   } catch(e) {
     console.warn('[cheat cpu]', e);
     return randomChoice();
